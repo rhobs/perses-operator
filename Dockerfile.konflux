@@ -1,0 +1,36 @@
+FROM brew.registry.redhat.io/rh-osbs/openshift-golang-builder:rhel_9_1.23 as builder
+
+USER root
+
+RUN dnf install -y --setopt=tsflags=nodocs mailcap && \
+    dnf clean all && \
+    rm -rf /var/cache/dnf
+
+WORKDIR /app
+
+COPY . .
+
+RUN make bin
+
+FROM registry.redhat.io/rhel9-4-els/rhel:9.4
+
+LABEL maintainer="Observability UI team <team-observability-ui@redhat.com>"
+
+USER nobody
+
+COPY --from=builder --chown=nobody:nobody /app/bin/manager  /bin/manager
+COPY --from=builder --chown=nobody:nobody /app/LICENSE      /LICENSE
+COPY --from=builder --chown=nobody:nobody /etc/mime.types   /etc/mime.types
+
+EXPOSE     8080
+ENTRYPOINT [ "/bin/manager" ]
+
+LABEL com.redhat.component="coo-perses-operator" \
+    name="perses/perses-operator" \
+    version="v0.1.12" \
+    summary="Perses Operator for Cluster Observability Operator" \
+    io.openshift.tags="openshift,observability-ui,perses-operator" \
+    io.k8s.display-name="Perses Operator for Cluster Observability Operator" \
+    io.k8s.description="Perses Operator for Cluster Observability Operator" \
+    maintainer="Observability UI Team <team-observability-ui@redhat.com>" \
+    description="Perses Operator for Cluster Observability Operator"
