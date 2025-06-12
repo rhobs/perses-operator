@@ -1,4 +1,5 @@
-VERSION?=$(shell cat VERSION)
+GO				?= go
+VERSION		?=$(shell cat VERSION)
 
 # DATE defines the building date. It is used mainly for goreleaser when generating the GitHub release.
 DATE := $(shell date +%Y-%m-%d)
@@ -187,7 +188,7 @@ vet: ## Run go vet against code.
 
 .PHONY: test
 test: manifests generate fmt vet envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)"  go test $(shell go list ./...) -v -ginkgo.v -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)"  go test $(shell go list ./...) -v -coverprofile cover.out
 
 .PHONY: lint-jsonnet
 lint-jsonnet: $(JSONNETLINT_BINARY)
@@ -442,3 +443,11 @@ cross-release: generate-goreleaser manifests generate fmt vet
 .PHONY: bin
 bin: 
 	go build $(BUILD_OPTS) -mod=readonly -o bin/manager main.go
+
+.PHONY: generate-changelog
+generate-changelog:
+	$(GO) run ./scripts/generate-changelog/generate-changelog.go --version="${VERSION}"
+
+.PHONY: tag
+tag:
+	./scripts/release.sh --tag "${VERSION}"

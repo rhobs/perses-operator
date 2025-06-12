@@ -23,6 +23,8 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -47,10 +49,16 @@ var testEnv *envtest.Environment
 var ctx context.Context
 var cancel context.CancelFunc
 
+const persesNamespace = "perses-test"
+
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 
-	RunSpecs(t, "Controller Suite")
+	suiteCfg, reporterCfg := GinkgoConfiguration()
+	// turns on verbosity for Ginkgo
+	reporterCfg.Verbose = true
+
+	RunSpecs(t, "Controller Suite", suiteCfg, reporterCfg)
 }
 
 var _ = BeforeSuite(func() {
@@ -96,6 +104,15 @@ var _ = BeforeSuite(func() {
 		Expect(err).ToNot(HaveOccurred(), "failed to run manager")
 	}()
 
+	By("Creating Perses test namespace")
+	namespace := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      persesNamespace,
+			Namespace: persesNamespace,
+		},
+	}
+	err = k8sClient.Create(ctx, namespace)
+	Expect(err).To(Not(HaveOccurred()))
 })
 
 var _ = AfterSuite(func() {
