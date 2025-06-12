@@ -16,7 +16,7 @@ limitations under the License.
 
 package common
 
-import "github.com/perses/perses-operator/api/v1alpha1"
+import "github.com/rhobs/perses-operator/api/v1alpha1"
 
 const (
 	PersesFinalizer     = "perses.dev/finalizer"

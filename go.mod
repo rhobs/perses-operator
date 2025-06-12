@@ -1,4 +1,4 @@
-module github.com/perses/perses-operator
+module github.com/rhobs/perses-operator
 
 go 1.23.4
 
@@ -6,13 +6,13 @@ require (
 	github.com/brunoga/deep v1.2.5
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.37.0
-	github.com/perses/perses v0.51.0
+	github.com/rhobs/perses v0.0.0-20250612171017-5d7686af9ae4
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.32.2
-	k8s.io/apimachinery v0.32.2
-	k8s.io/client-go v0.32.2
+	k8s.io/api v0.32.5
+	k8s.io/apimachinery v0.32.5
+	k8s.io/client-go v0.32.5
 	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738
 	sigs.k8s.io/controller-runtime v0.20.4
 )
@@ -52,7 +52,7 @@ require (
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.6.1 // indirect
 	github.com/go-git/go-git/v5 v5.13.1 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.0 // indirect
+	github.com/go-jose/go-jose/v4 v4.0.5 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/zapr v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v0.21.0 // indirect
@@ -61,7 +61,7 @@ require (
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/cel-go v0.25.0 // indirect
@@ -72,7 +72,7 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/goreleaser/chglog v0.6.2 // indirect
 	github.com/goreleaser/fileglob v1.3.0 // indirect
-	github.com/goreleaser/goreleaser/v2 v2.9.0 // indirect
+	github.com/goreleaser/goreleaser/v2 v2.5.1 // indirect
 	github.com/goreleaser/nfpm/v2 v2.41.3 // indirect
 	github.com/huandu/xstrings v1.5.0 // indirect
 	github.com/invopop/jsonschema v0.13.0 // indirect
@@ -119,8 +119,8 @@ require (
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
-	github.com/zitadel/oidc/v3 v3.38.1 // indirect
-	github.com/zitadel/schema v1.3.1 // indirect
+	github.com/zitadel/oidc/v3 v3.36.1 // indirect
+	github.com/zitadel/schema v1.3.0 // indirect
 	gitlab.com/digitalxero/go-conventional-commit v1.0.7 // indirect
 	go.uber.org/automaxprocs v1.6.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect

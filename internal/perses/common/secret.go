@@ -8,7 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/perses/perses-operator/api/v1alpha1"
+	"github.com/rhobs/perses-operator/api/v1alpha1"
 )
 
 func HasSecretConfig(c *v1alpha1.Client) bool {
