@@ -126,6 +126,11 @@ func serviceNeedsUpdate(existing, updated *corev1.Service, name string, perses *
 	// check for differences only in the labels that are set by the operator
 	labels := common.LabelsForPerses(name, perses)
 
+	// update the service if its selectors count do not match the labels count
+	if len(existing.Spec.Selector) != len(labels) {
+		return true
+	}
+
 	for k := range labels {
 		if existing.Labels[k] != updated.Labels[k] {
 			return true
