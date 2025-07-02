@@ -234,6 +234,8 @@ github.com/prometheus/procfs v0.15.1 h1:YagwOFzUgYfKKHX6Dr+sHT7km/hxC76UB0leargg
 github.com/prometheus/procfs v0.15.1/go.mod h1:fB45yRUv8NstnjriLhBQLuOUt+WW4BsoGhij/e3PBqk=
 github.com/rhobs/perses v0.0.0-20250612171017-5d7686af9ae4 h1:IxpxGJ/fbnRkZZYFm17NMedFyEuOKuf4TS23g+6jMvU=
 github.com/rhobs/perses v0.0.0-20250612171017-5d7686af9ae4/go.mod h1:Mxs4sXawWiV50qokKG1UZCV9NJEdJWsALY71/z38NKA=
+github.com/rhobs/perses v0.0.0-20250702155211-05ab23e2ea44 h1:RIdhHhB+yiMKPQlPEsxiZMaX5eqcLOATYzbDDZNXeLI=
+github.com/rhobs/perses v0.0.0-20250702155211-05ab23e2ea44/go.mod h1:Mxs4sXawWiV50qokKG1UZCV9NJEdJWsALY71/z38NKA=
 github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=
 github.com/rivo/uniseg v0.4.7 h1:WUdvkW8uEhrYfLC4ZzdpI2ztxP1I582+49Oc5Mq64VQ=
 github.com/rivo/uniseg v0.4.7/go.mod h1:FN3SvrM+Zdj16jyLfmOkMNblXMcoc8DfTHruCPUcx88=
