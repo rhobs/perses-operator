@@ -1602,7 +1602,6 @@ spec:
                             type: array
                         required:
                         - disable_custom
-                        - disable_zoom
                         type: object
                     required:
                     - disable
@@ -1941,7 +1940,6 @@ spec:
                                 type: array
                             required:
                             - enable_native
-                            - kubernetes
                             type: object
                           refresh_token_ttl:
                             description: |-

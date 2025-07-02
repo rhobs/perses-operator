@@ -1654,8 +1654,7 @@
                               }
                             },
                             "required": [
-                              "disable_custom",
-                              "disable_zoom"
+                              "disable_custom"
                             ],
                             "type": "object"
                           }
@@ -2098,8 +2097,7 @@
                                   }
                                 },
                                 "required": [
-                                  "enable_native",
-                                  "kubernetes"
+                                  "enable_native"
                                 ],
                                 "type": "object"
                               },
