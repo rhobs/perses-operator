@@ -3,7 +3,7 @@ package common
 import (
 	"fmt"
 
-	"github.com/perses/perses-operator/api/v1alpha1"
+	"github.com/rhobs/perses-operator/api/v1alpha1"
 )
 
 // GetPersesArgs returns the command line arguments for the Perses server.

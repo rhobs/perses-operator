@@ -21,7 +21,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/perses/perses-operator/api/v1alpha1"
+	"github.com/rhobs/perses-operator/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/util/validation"
 )
 

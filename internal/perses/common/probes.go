@@ -1,7 +1,7 @@
 package common
 
 import (
-	"github.com/perses/perses-operator/api/v1alpha1"
+	"github.com/rhobs/perses-operator/api/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )

@@ -582,8 +582,8 @@ spec:
                           most preferred is the one with the greatest sum of weights, i.e.
                           for each node that meets all of the scheduling requirements (resource
                           request, requiredDuringScheduling anti-affinity expressions, etc.),
-                          compute a sum by iterating through the elements of this field and adding
-                          "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the
+                          compute a sum by iterating through the elements of this field and subtracting
+                          "weight" from the sum if the node has pods which matches the corresponding podAffinityTerm; the
                           node(s) with the highest sum are the most preferred.
                         items:
                           description: The weights of all of the matched WeightedPodAffinityTerm fields are added per-node to find the most preferred node(s)
@@ -1338,6 +1338,11 @@ spec:
                                       additionalProperties:
                                         type: string
                                       type: object
+                                    k8s_auth:
+                                      properties:
+                                        kubeconfig:
+                                          type: string
+                                      type: object
                                     native_auth:
                                       properties:
                                         login:
@@ -1670,6 +1675,13 @@ spec:
                             properties:
                               enable_native:
                                 type: boolean
+                              kubernetes:
+                                properties:
+                                  enable:
+                                    type: boolean
+                                required:
+                                - enable
+                                type: object
                               oauth:
                                 items:
                                   properties:
@@ -1941,12 +1953,12 @@ spec:
                         description: Authorization contains all configs around rbac (permissions and roles)
                         properties:
                           check_latest_update_interval:
-                            description: CheckLatestUpdateInterval that checks if the RBAC cache needs to be refreshed with db content. Only for SQL database setup.
+                            description: 'DEPRECATED: use NativeAuthorizationProvider.CheckLatestUpdateInterval instead.'
                             format: duration
                             pattern: ^(([0-9]+)y)?(([0-9]+)w)?(([0-9]+)d)?(([0-9]+)h)?(([0-9]+)m)?(([0-9]+)s)?(([0-9]+)ms)?$
                             type: string
                           guest_permissions:
-                            description: Default permissions for guest users (logged-in users)
+                            description: 'DEPRECATED: use NativeAuthorizationProvider.GuestPermissions instead.'
                             items:
                               properties:
                                 actions:
@@ -1966,6 +1978,74 @@ spec:
                               - scopes
                               type: object
                             type: array
+                          provider:
+                            properties:
+                              kubernetes:
+                                properties:
+                                  authenticator_ttl:
+                                    description: 'time an authenticator response will be cached for. Default: 2m'
+                                    format: duration
+                                    pattern: ^(([0-9]+)y)?(([0-9]+)w)?(([0-9]+)d)?(([0-9]+)h)?(([0-9]+)m)?(([0-9]+)s)?(([0-9]+)ms)?$
+                                    type: string
+                                  authorizer_allow_ttl:
+                                    description: 'time an authorizer allow response will be cached for. Default: 5m'
+                                    format: duration
+                                    pattern: ^(([0-9]+)y)?(([0-9]+)w)?(([0-9]+)d)?(([0-9]+)h)?(([0-9]+)m)?(([0-9]+)s)?(([0-9]+)ms)?$
+                                    type: string
+                                  authorizer_deny_ttl:
+                                    description: 'time an authorizer denied will be cached for. Default: 30s'
+                                    format: duration
+                                    pattern: ^(([0-9]+)y)?(([0-9]+)w)?(([0-9]+)d)?(([0-9]+)h)?(([0-9]+)m)?(([0-9]+)s)?(([0-9]+)ms)?$
+                                    type: string
+                                  burst:
+                                    description: 'burst QPS the k8s client will use with the apiserver. Default: 1000 qps'
+                                    type: integer
+                                  enable:
+                                    type: boolean
+                                  kubeconfig:
+                                    description: |-
+                                      File path to a local kubeconfig file used for local testing/development. The current logged in
+                                      user's bearer token will be used for both the backend and as the user being logged into Perses.
+                                      The user should have "create" permissions for the `TokenReview` and `SubjectAccessReview`
+                                      resources. If this parameter isn't available the pods service account token will be used. This
+                                      parameter should not be set in production
+                                    type: string
+                                  qps:
+                                    description: 'query per second (QPS) the k8s client will use with the apiserver. Default: 500 qps'
+                                    type: integer
+                                type: object
+                              native:
+                                properties:
+                                  check_latest_update_interval:
+                                    description: CheckLatestUpdateInterval that checks if the RBAC cache needs to be refreshed with db content. Only for SQL database setup.
+                                    format: duration
+                                    pattern: ^(([0-9]+)y)?(([0-9]+)w)?(([0-9]+)d)?(([0-9]+)h)?(([0-9]+)m)?(([0-9]+)s)?(([0-9]+)ms)?$
+                                    type: string
+                                  enable:
+                                    type: boolean
+                                  guest_permissions:
+                                    description: Default permissions for guest users (logged-in users)
+                                    items:
+                                      properties:
+                                        actions:
+                                          description: Actions of the permission (read, create, update, delete, ...)
+                                          items:
+                                            type: string
+                                          type: array
+                                        scopes:
+                                          description: |-
+                                            The list of kind targeted by the permission. For example: `Datasource`, `Dashboard`, ...
+                                            With Role, you can't target global kinds
+                                          items:
+                                            type: string
+                                          type: array
+                                      required:
+                                      - actions
+                                      - scopes
+                                      type: object
+                                    type: array
+                                type: object
+                            type: object
                         type: object
                       cookie:
                         description: Cookie configuration

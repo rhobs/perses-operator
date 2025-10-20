@@ -8,12 +8,12 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	v1 "github.com/perses/perses/pkg/client/api/v1"
-	clientConfig "github.com/perses/perses/pkg/client/config"
-	"github.com/perses/perses/pkg/model/api/v1/common"
-	"github.com/perses/perses/pkg/model/api/v1/secret"
+	v1 "github.com/rhobs/perses/pkg/client/api/v1"
+	clientConfig "github.com/rhobs/perses/pkg/client/config"
+	"github.com/rhobs/perses/pkg/model/api/v1/common"
+	"github.com/rhobs/perses/pkg/model/api/v1/secret"
 
-	persesv1alpha1 "github.com/perses/perses-operator/api/v1alpha1"
+	persesv1alpha1 "github.com/rhobs/perses-operator/api/v1alpha1"
 )
 
 const tokenPath = "/var/run/secrets/kubernetes.io/serviceaccount/token"

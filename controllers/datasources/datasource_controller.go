@@ -23,18 +23,18 @@ import (
 	"os"
 	"time"
 
-	v1 "github.com/perses/perses/pkg/client/api/v1"
-	"github.com/perses/perses/pkg/client/perseshttp"
-	persesv1 "github.com/perses/perses/pkg/model/api/v1"
-	"github.com/perses/perses/pkg/model/api/v1/common"
-	"github.com/perses/perses/pkg/model/api/v1/secret"
+	v1 "github.com/rhobs/perses/pkg/client/api/v1"
+	"github.com/rhobs/perses/pkg/client/perseshttp"
+	persesv1 "github.com/rhobs/perses/pkg/model/api/v1"
+	"github.com/rhobs/perses/pkg/model/api/v1/common"
+	"github.com/rhobs/perses/pkg/model/api/v1/secret"
 	logger "github.com/sirupsen/logrus"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	persesv1alpha1 "github.com/perses/perses-operator/api/v1alpha1"
-	persescommon "github.com/perses/perses-operator/internal/perses/common"
-	"github.com/perses/perses-operator/internal/subreconciler"
+	persesv1alpha1 "github.com/rhobs/perses-operator/api/v1alpha1"
+	persescommon "github.com/rhobs/perses-operator/internal/perses/common"
+	"github.com/rhobs/perses-operator/internal/subreconciler"
 )
 
 const secretNameSuffix = "-secret"
