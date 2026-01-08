@@ -109,8 +109,6 @@ spec:
                               type: string
                             name:
                               type: string
-                          required:
-                          - name
                           type: object
                         links:
                           items:
@@ -165,7 +163,6 @@ spec:
                             type: object
                           type: array
                       required:
-                      - display
                       - plugin
                       type: object
                   required:
@@ -358,8 +355,6 @@ spec:
                                   type: string
                                 name:
                                   type: string
-                              required:
-                              - name
                               type: object
                             links:
                               items:
@@ -414,7 +409,6 @@ spec:
                                 type: object
                               type: array
                           required:
-                          - display
                           - plugin
                           type: object
                       required:

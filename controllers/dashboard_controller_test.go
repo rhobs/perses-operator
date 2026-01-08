@@ -8,20 +8,20 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/perses/perses/pkg/client/perseshttp"
-	persesv1 "github.com/perses/perses/pkg/model/api/v1"
-	persescommon "github.com/perses/perses/pkg/model/api/v1/common"
-	persesdashboard "github.com/perses/perses/pkg/model/api/v1/dashboard"
+	"github.com/rhobs/perses/pkg/client/perseshttp"
+	persesv1 "github.com/rhobs/perses/pkg/model/api/v1"
+	persescommon "github.com/rhobs/perses/pkg/model/api/v1/common"
+	persesdashboard "github.com/rhobs/perses/pkg/model/api/v1/dashboard"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	persesv1alpha2 "github.com/perses/perses-operator/api/v1alpha2"
-	dashboardcontroller "github.com/perses/perses-operator/controllers/dashboards"
-	internal "github.com/perses/perses-operator/internal/perses"
-	"github.com/perses/perses-operator/internal/perses/common"
+	persesv1alpha2 "github.com/rhobs/perses-operator/api/v1alpha2"
+	dashboardcontroller "github.com/rhobs/perses-operator/controllers/dashboards"
+	internal "github.com/rhobs/perses-operator/internal/perses"
+	"github.com/rhobs/perses-operator/internal/perses/common"
 )
 
 var _ = Describe("Dashboard controller", func() {
@@ -60,7 +60,7 @@ var _ = Describe("Dashboard controller", func() {
 					"panel1": {
 						Kind: "Panel",
 						Spec: persesv1.PanelSpec{
-							Display: persesv1.PanelDisplay{
+							Display: &persesv1.PanelDisplay{
 								Name: "test-panel",
 							},
 							Plugin: persescommon.Plugin{

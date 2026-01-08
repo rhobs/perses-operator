@@ -33,9 +33,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	"github.com/perses/perses-operator/api/v1alpha2"
-	"github.com/perses/perses-operator/internal/perses/common"
-	"github.com/perses/perses-operator/internal/subreconciler"
+	"github.com/rhobs/perses-operator/api/v1alpha2"
+	"github.com/rhobs/perses-operator/internal/perses/common"
+	"github.com/rhobs/perses-operator/internal/subreconciler"
 )
 
 type Config struct {

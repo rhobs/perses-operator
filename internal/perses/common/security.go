@@ -17,7 +17,7 @@ limitations under the License.
 package common
 
 import (
-	"github.com/perses/perses-operator/api/v1alpha2"
+	"github.com/rhobs/perses-operator/api/v1alpha2"
 	corev1 "k8s.io/api/core/v1"
 )
 
