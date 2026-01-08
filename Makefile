@@ -76,7 +76,7 @@ endif
 
 # Set the Operator SDK version to use. By default, what is installed on the system is used.
 # This is useful for CI or a project to utilize a specific version of the operator-sdk toolkit.
-OPERATOR_SDK_VERSION ?= v1.32.0
+OPERATOR_SDK_VERSION ?= v1.40.0
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
 # ENVTEST_VERSION refers to the version of the envtest binary.
@@ -84,6 +84,13 @@ ENVTEST_VERSION ?= release-0.19
 
 # Image URL to use all building/pushing image targets
 IMG ?= $(IMAGE_TAG_BASE):v$(VERSION)
+
+# Docker image tag with git SHA and date
+DOCKER_IMAGE_TAG ?= $(subst /,-,$(shell git rev-parse --abbrev-ref HEAD))-$(shell date +%Y-%m-%d)-$(shell git rev-parse --short HEAD)
+
+.PHONY: print-image-tag
+print-image-tag: ## Print the docker image tag with git SHA
+	@echo $(DOCKER_IMAGE_TAG)
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -175,8 +182,13 @@ jsonnet-format: $(JSONNET_SRC) jsonnetfmt
 	$(JSONNETFMT_BINARY) -n 2 --max-blank-lines 2 --string-style s --comment-style s -i $(JSONNET_SRC)
 
 .PHONY: generate
-generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+generate: controller-gen conversion-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	$(CONVERSION_GEN) \
+		--output-file=zz_generated.conversion.go \
+		--go-header-file=./hack/boilerplate.go.txt \
+		--skip-unsafe=true \
+		./api/v1alpha1
 
 .PHONY: fmt
 fmt: jsonnet-format ## Run go fmt against code.
@@ -205,8 +217,13 @@ lint: lint-jsonnet ## Run linting.
 build: manifests generate fmt vet ## Build manager binary.
 	go build -o bin/manager main.go
 
+# Generate local webhook certs and patch CRDs with CA Bundle
+.PHONY: generate-local-certs
+generate-local-certs: yq
+	./scripts/gen-certs.sh
+
 .PHONY: run
-run: manifests generate fmt vet ## Run a controller from your host.
+run: generate-local-certs manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go $(ARGS)
 
 # If you wish built the manager image targeting other platforms you can use the --platform flag.
@@ -247,22 +264,54 @@ podman-cross-build: test
 	podman build --platform $(PLATFORMS) --manifest ${IMG} -f Dockerfile.dev
 	podman manifest push ${IMG}
 
+# Add a bundle.yaml file with CRDs and deployment, with kustomize config.
+.PHONY: build-installer
+build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
+	@echo ">> generating bundle.yaml (override image using IMG)"
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/default > bundle.yaml
+
 ifndef ignore-not-found
   ignore-not-found = false
 endif
 
-.PHONY: install
-install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
+.PHONY: install-cert-manager
+install-cert-manager: ## Install cert-manager into the K8s cluster specified in ~/.kube/config.
+	kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.16.2/cert-manager.yaml
+	kubectl wait --for=condition=Available --timeout=300s -n cert-manager deployment/cert-manager
+	kubectl wait --for=condition=Available --timeout=300s -n cert-manager deployment/cert-manager-cainjector
+	kubectl wait --for=condition=Available --timeout=300s -n cert-manager deployment/cert-manager-webhook
+
+.PHONY: install-crds
+install-crds: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | kubectl apply -f -
 
-.PHONY: uninstall
-uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+.PHONY: uninstall-cert-manager
+uninstall-cert-manager: ## Uninstall cert-manager from the K8s cluster specified in ~/.kube/config.
+	kubectl delete -f https://github.com/cert-manager/cert-manager/releases/download/v1.16.2/cert-manager.yaml --ignore-not-found=$(ignore-not-found)
+
+.PHONY: uninstall-crds
+uninstall-crds: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/crd | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
 .PHONY: deploy
-deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+deploy: deploy-with-certmanager ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+
+.PHONY: deploy-with-certmanager
+deploy-with-certmanager: manifests kustomize install-cert-manager
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
+
+## Deploy controller to the K8s cluster specified in ~/.kube/config.
+## This target generates the webhook certs locally and applies them to the cluster
+.PHONY: deploy-local
+deploy-local: generate-local-certs manifests kustomize
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	kubectl -n perses-operator-system create secret tls webhook-server-cert \
+    	--dry-run=client -o yaml \
+		--cert="/tmp/k8s-webhook-server/serving-certs/tls.crt" \
+		--key="/tmp/k8s-webhook-server/serving-certs/tls.key" > "config/local/certificate.yaml"
+	$(KUSTOMIZE) build config/local | kubectl apply -f -
 
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
@@ -283,14 +332,19 @@ ENVTEST ?= $(LOCALBIN)/setup-envtest-$(ENVTEST_VERSION)
 JSONNET_BINARY ?= $(LOCALBIN)/jsonnet
 JSONNETFMT_BINARY ?= $(LOCALBIN)/jsonnetfmt
 JSONNETLINT_BINARY ?= $(LOCALBIN)/jsonnet-lint
+CONVERSION_GEN ?= $(LOCALBIN)/conversion-gen
+YQ ?= $(LOCALBIN)/yq
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v3.8.7
-CONTROLLER_TOOLS_VERSION ?= v0.16.0
+CONTROLLER_TOOLS_VERSION ?= v0.19.0
 GOJSONTOYAML_VERSION ?= v0.1.0
 JSONNET_VERSION ?= v0.21.0
 JSONNETFMT_VERSION ?= v0.21.0
 JSONNETLINT_VERSION ?= v0.21.0
+CONVERSION_GEN_VERSION ?= v0.33.0
+YQ_VERSION ?= v4.45.4
+
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary. If wrong version is installed, it will be removed before downloading.
@@ -331,6 +385,17 @@ $(JSONNETLINT_BINARY): $(LOCALBIN)
 	test -s $(LOCALBIN)/jsonnet-lint && $(LOCALBIN)/jsonnet-lint --version | grep -q $(JSONNETLINT_VERSION) || \
 	GOBIN=$(LOCALBIN) go install github.com/google/go-jsonnet/cmd/jsonnet-lint@$(JSONNETLINT_VERSION)
 
+.PHONY: conversion-gen
+conversion-gen: $(CONVERSION_GEN) ## Download conversion-gen locally if necessary. If wrong version is installed, it will be overwritten.
+$(CONVERSION_GEN): $(LOCALBIN)
+	GOBIN=$(LOCALBIN) go install k8s.io/code-generator/cmd/conversion-gen@$(CONVERSION_GEN_VERSION)
+
+.PHONY: yq
+yq: $(YQ) ## Download conversion-gen locally if necessary. If wrong version is installed, it will be overwritten.
+$(YQ): $(LOCALBIN)
+	test -s $(LOCALBIN)/yq && $(LOCALBIN)/yq version | grep -q $(YQ_VERSION) || \
+	GOBIN=$(LOCALBIN) go install github.com/mikefarah/yq/v4@$(YQ_VERSION)
+
 .PHONY: envtest
 envtest: $(ENVTEST) ## Download setup-envtest locally if necessary.
 $(ENVTEST): $(LOCALBIN)
@@ -362,7 +427,7 @@ bundle: manifests kustomize operator-sdk ## Generate bundle manifests and metada
 
 .PHONY: bundle-check
 bundle-check: bundle
-	git diff --quiet --exit-code bundle config
+	git diff --exit-code bundle config
 
 .PHONY: bundle-build
 bundle-build: generate bundle ## Build the bundle image.
@@ -430,6 +495,10 @@ endef
 .PHONY: generate-goreleaser
 generate-goreleaser:
 	go run ./scripts/generate-goreleaser/generate-goreleaser.go
+
+.PHONY: push-main-docker-image
+push-main-docker-image:
+	go run ./scripts/push-main-docker-image/push-main-docker-image.go
 
 ## Cross build binaries for all platforms (Use "make image-build" in development)
 .PHONY: cross-build

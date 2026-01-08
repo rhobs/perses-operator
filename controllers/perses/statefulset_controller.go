@@ -33,7 +33,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/perses/perses-operator/api/v1alpha1"
+	"github.com/perses/perses-operator/api/v1alpha2"
 	"github.com/perses/perses-operator/internal/perses/common"
 	"github.com/perses/perses-operator/internal/subreconciler"
 )
@@ -41,7 +41,7 @@ import (
 var stlog = logger.WithField("module", "statefulset_controller")
 
 func (r *PersesReconciler) reconcileStatefulSet(ctx context.Context, req ctrl.Request) (*ctrl.Result, error) {
-	perses := &v1alpha1.Perses{}
+	perses := &v1alpha2.Perses{}
 
 	if result, err := r.getLatestPerses(ctx, req, perses); subreconciler.ShouldHaltOrRequeue(result, err) {
 		return result, err
@@ -119,7 +119,7 @@ func (r *PersesReconciler) reconcileStatefulSet(ctx context.Context, req ctrl.Re
 }
 
 func (r *PersesReconciler) createPersesStatefulSet(
-	perses *v1alpha1.Perses) (*appsv1.StatefulSet, error) {
+	perses *v1alpha2.Perses) (*appsv1.StatefulSet, error) {
 
 	ls := common.LabelsForPerses(perses.Name, perses)
 
@@ -154,14 +154,10 @@ func (r *PersesReconciler) createPersesStatefulSet(
 					Labels:      ls,
 				},
 				Spec: corev1.PodSpec{
-					NodeSelector: perses.Spec.NodeSelector,
-					Tolerations:  perses.Spec.Tolerations,
-					Affinity:     perses.Spec.Affinity,
-					SecurityContext: &corev1.PodSecurityContext{
-						SeccompProfile: &corev1.SeccompProfile{
-							Type: corev1.SeccompProfileTypeRuntimeDefault,
-						},
-					},
+					NodeSelector:    perses.Spec.NodeSelector,
+					Tolerations:     perses.Spec.Tolerations,
+					Affinity:        perses.Spec.Affinity,
+					SecurityContext: common.GetPodSecurityContext(perses),
 					Containers: []corev1.Container{{
 						Image:           image,
 						Name:            "perses",

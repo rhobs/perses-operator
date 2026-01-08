@@ -14,7 +14,7 @@ You’ll need:
 
 1. Install custom resource definitions:
 ```sh
-make install
+make install-crds
 ```
 
 2. Create a namespace for the resources:
@@ -30,8 +30,17 @@ kubectl apply -k config/samples
 
 4. Using the the location specified by `IMG`, build a testing image and push it to the registry, then deploy the controller to the cluster:
 > **Note:** Make sure the image is accessible either publicly or from the cluster internal registry.
+> 
+> A cert is also required to run the operator due to the conversion webhook.
 
+**Option A: Using self-signed certificates (for development/testing)**
 ```sh
+IMG=<some-registry>/perses-operator:tag make test-image-build image-push deploy-local
+```
+
+**Option B: Using cert-manager (recommended for production)**
+```sh
+make install-cert-manager
 IMG=<some-registry>/perses-operator:tag make test-image-build image-push deploy
 ```
 
@@ -48,7 +57,7 @@ kubectl -n perses-dev port-forward svc/perses-sample 8080:8080
 To delete the CRDs from the cluster:
 
 ```sh
-make uninstall
+make uninstall-crds
 ```
 
 ### Undeploy controller
@@ -81,7 +90,7 @@ Each instance of the CRD deploys the following resources:
 1. Install Instances of Custom Resources and run the controller:
 
 ```sh
-PERSES_IMAGE=docker.io/persesdev/perses:v0.50.3 make install run
+PERSES_IMAGE=docker.io/persesdev/perses:v0.50.3 make install-crds run
 ```
 
 2. Install a CRD instance

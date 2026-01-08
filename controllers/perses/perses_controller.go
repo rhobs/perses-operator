@@ -33,7 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	"github.com/perses/perses-operator/api/v1alpha1"
+	"github.com/perses/perses-operator/api/v1alpha2"
 	"github.com/perses/perses-operator/internal/perses/common"
 	"github.com/perses/perses-operator/internal/subreconciler"
 )
@@ -80,7 +80,7 @@ func (r *PersesReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	return subreconciler.Evaluate(subreconciler.DoNotRequeue())
 }
 
-func (r *PersesReconciler) getLatestPerses(ctx context.Context, req ctrl.Request, perses *v1alpha1.Perses) (*ctrl.Result, error) {
+func (r *PersesReconciler) getLatestPerses(ctx context.Context, req ctrl.Request, perses *v1alpha2.Perses) (*ctrl.Result, error) {
 	// Fetch the latest version of the perses resource
 	if err := r.Get(ctx, req.NamespacedName, perses); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -98,7 +98,7 @@ func (r *PersesReconciler) getLatestPerses(ctx context.Context, req ctrl.Request
 }
 
 func (r *PersesReconciler) setStatusToUnknown(ctx context.Context, req ctrl.Request) (*ctrl.Result, error) {
-	perses := &v1alpha1.Perses{}
+	perses := &v1alpha2.Perses{}
 
 	// Fetch the latest Perses
 	// If this fails, bubble up the reconcile results to the main reconciler
@@ -118,14 +118,14 @@ func (r *PersesReconciler) setStatusToUnknown(ctx context.Context, req ctrl.Requ
 		// requeue after adding unknown status to allow adding the finalizer to succeed
 		// see explanation on setting a status on creation here
 		// https://github.com/kubernetes-sigs/controller-runtime/blob/1dce6213f6c078f3170921b3a774304d066d5bd4/pkg/controller/controllerutil/controllerutil.go#L378
-		return subreconciler.Requeue()
+		return subreconciler.RequeueWithDelay(time.Second * 5)
 	}
 
 	return subreconciler.ContinueReconciling()
 }
 
 func (r *PersesReconciler) addFinalizer(ctx context.Context, req ctrl.Request) (*ctrl.Result, error) {
-	perses := &v1alpha1.Perses{}
+	perses := &v1alpha2.Perses{}
 
 	// Fetch the latest Perses
 	// If this fails, bubble up the reconcile results to the main reconciler
@@ -138,10 +138,6 @@ func (r *PersesReconciler) addFinalizer(ctx context.Context, req ctrl.Request) (
 	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/finalizers
 	if !controllerutil.ContainsFinalizer(perses, common.PersesFinalizer) {
 		log.Info("Adding Finalizer for Perses")
-		if ok := controllerutil.AddFinalizer(perses, common.PersesFinalizer); !ok {
-			log.Error("Failed to add finalizer into the custom resource")
-			return subreconciler.RequeueWithDelay(time.Second * 10)
-		}
 
 		// Re-fetch the perses Custom Resource before update the status
 		// so that we have the latest state of the resource on the cluster and we will avoid
@@ -150,6 +146,11 @@ func (r *PersesReconciler) addFinalizer(ctx context.Context, req ctrl.Request) (
 		if err := r.Get(ctx, req.NamespacedName, perses); err != nil {
 			log.WithError(err).Error("Failed to re-fetch perses")
 			return subreconciler.RequeueWithError(err)
+		}
+
+		if ok := controllerutil.AddFinalizer(perses, common.PersesFinalizer); !ok {
+			log.Error("Failed to add finalizer into the custom resource")
+			return subreconciler.RequeueWithDelay(time.Second * 10)
 		}
 
 		if err := r.Update(ctx, perses); err != nil {
@@ -162,7 +163,7 @@ func (r *PersesReconciler) addFinalizer(ctx context.Context, req ctrl.Request) (
 }
 
 func (r *PersesReconciler) handleDelete(ctx context.Context, req ctrl.Request) (*ctrl.Result, error) {
-	perses := &v1alpha1.Perses{}
+	perses := &v1alpha2.Perses{}
 
 	// Fetch the latest Perses
 	// If this fails, bubble up the reconcile results to the main reconciler
@@ -216,7 +217,7 @@ func (r *PersesReconciler) handleDelete(ctx context.Context, req ctrl.Request) (
 			log.Info("Removing Finalizer for Perses after successfully perform the operations")
 			if ok := controllerutil.RemoveFinalizer(perses, common.PersesFinalizer); !ok {
 				log.Error(nil, "Failed to remove finalizer for Perses")
-				return subreconciler.Requeue()
+				return subreconciler.RequeueWithDelay(time.Second * 10)
 			}
 
 			if err := r.Update(ctx, perses); err != nil {
@@ -231,7 +232,7 @@ func (r *PersesReconciler) handleDelete(ctx context.Context, req ctrl.Request) (
 	return subreconciler.ContinueReconciling()
 }
 
-func (r *PersesReconciler) doFinalizerOperationsForPerses(perses *v1alpha1.Perses) {
+func (r *PersesReconciler) doFinalizerOperationsForPerses(perses *v1alpha2.Perses) {
 	// TODO(user): Add the cleanup steps that the operator
 	// needs to do before the CR can be deleted. Examples
 	// of finalizers include performing backups and deleting
@@ -255,7 +256,7 @@ func (r *PersesReconciler) doFinalizerOperationsForPerses(perses *v1alpha1.Perse
 // SetupWithManager sets up the controller with the Manager.
 func (r *PersesReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.Perses{}).
+		For(&v1alpha2.Perses{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&appsv1.StatefulSet{}).
 		Owns(&corev1.ConfigMap{}).

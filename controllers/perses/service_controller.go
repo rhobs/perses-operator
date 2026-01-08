@@ -19,6 +19,7 @@ package perses
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	logger "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -31,9 +32,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"maps"
-
-	"github.com/perses/perses-operator/api/v1alpha1"
+	"github.com/perses/perses-operator/api/v1alpha2"
 	"github.com/perses/perses-operator/internal/perses/common"
 	"github.com/perses/perses-operator/internal/subreconciler"
 )
@@ -41,7 +40,7 @@ import (
 var slog = logger.WithField("module", "service_controller")
 
 func (r *PersesReconciler) reconcileService(ctx context.Context, req ctrl.Request) (*ctrl.Result, error) {
-	perses := &v1alpha1.Perses{}
+	perses := &v1alpha2.Perses{}
 
 	if result, err := r.getLatestPerses(ctx, req, perses); subreconciler.ShouldHaltOrRequeue(result, err) {
 		return result, err
@@ -107,13 +106,7 @@ func (r *PersesReconciler) reconcileService(ctx context.Context, req ctrl.Reques
 	return subreconciler.ContinueReconciling()
 }
 
-func serviceNeedsUpdate(existing, updated *corev1.Service, name string, perses *v1alpha1.Perses) bool {
-	if existing == nil && updated == nil {
-		return false
-	}
-	if existing == nil || updated == nil {
-		return true
-	}
+func serviceNeedsUpdate(existing, updated *corev1.Service, name string, perses *v1alpha2.Perses) bool {
 	if existing.Name != updated.Name || existing.Namespace != updated.Namespace {
 		return true
 	}
@@ -125,6 +118,11 @@ func serviceNeedsUpdate(existing, updated *corev1.Service, name string, perses *
 
 	// check for differences only in the labels that are set by the operator
 	labels := common.LabelsForPerses(name, perses)
+
+	// update the service if its selectors count do not match the labels count
+	if len(existing.Spec.Selector) != len(labels) {
+		return true
+	}
 
 	for k := range labels {
 		if existing.Labels[k] != updated.Labels[k] {
@@ -140,7 +138,7 @@ func serviceNeedsUpdate(existing, updated *corev1.Service, name string, perses *
 
 func (r *PersesReconciler) createPersesService(
 	serviceName string,
-	perses *v1alpha1.Perses) (*corev1.Service, error) {
+	perses *v1alpha2.Perses) (*corev1.Service, error) {
 	ls := common.LabelsForPerses(perses.Name, perses)
 
 	annotations := map[string]string{}
