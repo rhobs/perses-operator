@@ -260,7 +260,7 @@ docker-buildx: test ## Build and push docker image for the manager for cross-pla
 
 .PHONY: podman-cross-build
 podman-cross-build: test
-	podman manifest create ${IMG}
+	podman manifest create -a ${IMG}
 	podman build --platform $(PLATFORMS) --manifest ${IMG} -f Dockerfile.dev
 	podman manifest push ${IMG}
 
@@ -417,6 +417,9 @@ else
 OPERATOR_SDK = $(shell which operator-sdk)
 endif
 endif
+
+.PHONY: build-tools
+build-tools: kustomize controller-gen gojsontoyaml jsonnet conversion-gen
 
 .PHONY: bundle
 bundle: manifests kustomize operator-sdk ## Generate bundle manifests and metadata, then validate generated files.
