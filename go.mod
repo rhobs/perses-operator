@@ -7,7 +7,7 @@ require (
 	github.com/goreleaser/goreleaser/v2 v2.13.1
 	github.com/onsi/ginkgo/v2 v2.27.2
 	github.com/onsi/gomega v1.38.2
-	github.com/rhobs/perses v0.0.0-20260108135452-fa4ca8ac8e73
+	github.com/rhobs/perses v0.0.0-20260113083341-bce6f0039b5d
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.11.1
 	gopkg.in/yaml.v2 v2.4.0
