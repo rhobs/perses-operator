@@ -116,7 +116,7 @@ var _ = Describe("Dashboard controller", Ordered, func() {
 						"panel1": {
 							Kind: "Panel",
 							Spec: persesv1.PanelSpec{
-								Display: persesv1.PanelDisplay{
+								Display: &persesv1.PanelDisplay{
 									Name: "test-panel",
 								},
 								Plugin: persescommon.Plugin{
