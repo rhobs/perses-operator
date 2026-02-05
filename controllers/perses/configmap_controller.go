@@ -39,10 +39,10 @@ import (
 var cmlog = logger.WithField("module", "configmap_controller")
 
 func (r *PersesReconciler) reconcileConfigMap(ctx context.Context, req ctrl.Request) (*ctrl.Result, error) {
-	perses := &v1alpha2.Perses{}
-
-	if result, err := r.getLatestPerses(ctx, req, perses); subreconciler.ShouldHaltOrRequeue(result, err) {
-		return result, err
+	perses, ok := persesFromContext(ctx)
+	if !ok {
+		cmlog.Error("perses not found in context")
+		return subreconciler.RequeueWithError(fmt.Errorf("perses not found in context"))
 	}
 
 	configName := common.GetConfigName(perses.Name)
@@ -87,13 +87,13 @@ func (r *PersesReconciler) reconcileConfigMap(ctx context.Context, req ctrl.Requ
 
 	// call update with dry run to fill out fields that are also returned via the k8s api
 	if err := r.Update(ctx, cm, client.DryRunAll); err != nil {
-		cmlog.Error(err, "Failed to update ConfigMap with dry run")
+		cmlog.WithError(err).Error("Failed to update ConfigMap with dry run")
 		return subreconciler.RequeueWithError(err)
 	}
 
 	if configMapNeedsUpdate(found, cm, configName, perses) {
 		if err := r.Update(ctx, cm); err != nil {
-			cmlog.Error(err, "Failed to update ConfigMap")
+			cmlog.WithError(err).Error("Failed to update ConfigMap")
 			return subreconciler.RequeueWithError(err)
 		}
 	}

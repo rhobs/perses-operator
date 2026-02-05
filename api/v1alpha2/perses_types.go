@@ -36,6 +36,9 @@ type PersesSpec struct {
 	// Args extra arguments to pass to perses
 	Args []string `json:"args,omitempty"`
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +kubebuilder:default=8080
 	ContainerPort int32 `json:"containerPort,omitempty"`
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	// +optional
@@ -83,6 +86,18 @@ type PersesSpec struct {
 	// PodSecurityContext holds pod-level security attributes and common container settings.
 	// If not specified, defaults to fsGroup: 65534 to ensure proper volume permissions for the nobody user.
 	PodSecurityContext *corev1.PodSecurityContext `json:"podSecurityContext,omitempty"`
+
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +kubebuilder:validation:Enum=panic;fatal;error;warning;info;debug;trace
+	// +optional
+	// LogLevel defines the log level for Perses.
+	LogLevel *string `json:"logLevel,omitempty"`
+
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +optional
+	// LogMethodTrace when true, includes the calling method as a field in the log.
+	// It can be useful to see immediately where the log comes from.
+	LogMethodTrace *bool `json:"logMethodTrace,omitempty"`
 }
 
 // Metadata to add to deployed pods
@@ -123,8 +138,12 @@ type KubernetesAuth struct {
 
 type BasicAuth struct {
 	SecretSource `json:",inline"`
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
 	// Username for basic auth
 	Username string `json:"username"`
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
 	// Path to password
 	PasswordPath string `json:"password_path"`
 }
@@ -133,10 +152,12 @@ type OAuth struct {
 	SecretSource `json:",inline"`
 	// Path to client id
 	// +optional
-	ClientIDPath string `json:"clientIDPath"`
+	ClientIDPath string `json:"clientIDPath,omitempty"`
 	// Path to client secret
 	// +optional
-	ClientSecretPath string `json:"clientSecretPath"`
+	ClientSecretPath string `json:"clientSecretPath,omitempty"`
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
 	// TokenURL is the resource server's token endpoint
 	// URL. This is a constant specific to each server.
 	TokenURL string `json:"tokenURL"`
@@ -178,19 +199,22 @@ const (
 
 // SecretSource configuration for a perses secret source
 type SecretSource struct {
-	// +kubebuilder:validation:Enum:={"secret", "configmap", "file"}
+	// +kubebuilder:validation:Enum=secret;configmap;file
+	// +kubebuilder:validation:Required
 	// Type source type of secret
 	Type SecretSourceType `json:"type"`
 	// Name of basic auth k8s resource (when type is secret or configmap)
 	// +optional
 	Name string `json:"name,omitempty"`
-	// Namsespace of certificate k8s resource (when type is secret or configmap)
+	// Namespace of certificate k8s resource (when type is secret or configmap)
 	// +optional
 	Namespace string `json:"namespace,omitempty"`
 }
 
 type Certificate struct {
 	SecretSource `json:",inline"`
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
 	// Path to Certificate
 	CertPath string `json:"certPath"`
 	// Path to Private key certificate

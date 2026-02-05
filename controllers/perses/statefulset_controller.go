@@ -41,14 +41,14 @@ import (
 var stlog = logger.WithField("module", "statefulset_controller")
 
 func (r *PersesReconciler) reconcileStatefulSet(ctx context.Context, req ctrl.Request) (*ctrl.Result, error) {
-	perses := &v1alpha2.Perses{}
-
-	if result, err := r.getLatestPerses(ctx, req, perses); subreconciler.ShouldHaltOrRequeue(result, err) {
-		return result, err
+	perses, ok := persesFromContext(ctx)
+	if !ok {
+		stlog.Error("perses not found in context")
+		return subreconciler.RequeueWithError(fmt.Errorf("perses not found in context"))
 	}
 
 	if perses.Spec.Config.Database.File == nil {
-		stlog.Info("Database file configuration is not set, skipping StatefulSet creation")
+		stlog.Debug("Database file configuration is not set, skipping StatefulSet creation")
 
 		found := &appsv1.StatefulSet{}
 		err := r.Get(ctx, types.NamespacedName{Name: perses.Name, Namespace: perses.Namespace}, found)
@@ -71,25 +71,25 @@ func (r *PersesReconciler) reconcileStatefulSet(ctx context.Context, req ctrl.Re
 			return subreconciler.RequeueWithError(err)
 		}
 
-		dep, err2 := r.createPersesStatefulSet(perses)
-		if err2 != nil {
-			stlog.WithError(err2).Error("Failed to define new StatefulSet resource for perses")
+		sts, err := r.createPersesStatefulSet(perses)
+		if err != nil {
+			stlog.WithError(err).Error("Failed to define new StatefulSet resource for perses")
 
 			meta.SetStatusCondition(&perses.Status.Conditions, metav1.Condition{Type: common.TypeAvailablePerses,
 				Status: metav1.ConditionFalse, Reason: "Reconciling",
 				Message: fmt.Sprintf("Failed to create StatefulSet for the custom resource (%s): (%s)", perses.Name, err)})
 
-			if err = r.Status().Update(ctx, perses); err != nil {
-				stlog.Error(err, "Failed to update perses status")
+			if err := r.Status().Update(ctx, perses); err != nil {
+				stlog.WithError(err).Error("Failed to update perses status")
 				return subreconciler.RequeueWithError(err)
 			}
 
-			return subreconciler.RequeueWithError(err2)
+			return subreconciler.RequeueWithError(err)
 		}
 
-		stlog.Infof("Creating a new StatefulSet: StatefulSet.Namespace %s StatefulSet.Name %s", dep.Namespace, dep.Name)
-		if err = r.Create(ctx, dep); err != nil {
-			stlog.WithError(err).Errorf("Failed to create new StatefulSet: StatefulSet.Namespace %s StatefulSet.Name %s", dep.Namespace, dep.Name)
+		stlog.Infof("Creating a new StatefulSet: StatefulSet.Namespace %s StatefulSet.Name %s", sts.Namespace, sts.Name)
+		if err = r.Create(ctx, sts); err != nil {
+			stlog.WithError(err).Errorf("Failed to create new StatefulSet: StatefulSet.Namespace %s StatefulSet.Name %s", sts.Namespace, sts.Name)
 			return subreconciler.RequeueWithError(err)
 		}
 
@@ -104,13 +104,13 @@ func (r *PersesReconciler) reconcileStatefulSet(ctx context.Context, req ctrl.Re
 
 	// call update with dry run to fill out fields that are also returned via the k8s api
 	if err = r.Update(ctx, sts, client.DryRunAll); err != nil {
-		stlog.Error(err, "Failed to update StatefulSet with dry run")
+		stlog.WithError(err).Error("Failed to update StatefulSet with dry run")
 		return subreconciler.RequeueWithError(err)
 	}
 
 	if !equality.Semantic.DeepEqual(found.Spec, sts.Spec) {
 		if err = r.Update(ctx, sts); err != nil {
-			stlog.Error(err, "Failed to update StatefulSet")
+			stlog.WithError(err).Error("Failed to update StatefulSet")
 			return subreconciler.RequeueWithError(err)
 		}
 	}
