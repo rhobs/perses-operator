@@ -44,34 +44,7 @@ var _ = Describe("Dashboard controller", Ordered, func() {
 
 		persesImage := "perses-dev.io/perses:test"
 
-		newDashboard := &persesv1.Dashboard{
-			Kind: persesv1.KindDashboard,
-			Metadata: persesv1.ProjectMetadata{
-				Metadata: persesv1.Metadata{
-					Name: DashboardName,
-				},
-			},
-			Spec: persesv1.DashboardSpec{
-				Display: &persescommon.Display{
-					Name: DashboardName,
-				},
-				Layouts: []persesdashboard.Layout{},
-				Panels: map[string]*persesv1.Panel{
-					"panel1": {
-						Kind: "Panel",
-						Spec: persesv1.PanelSpec{
-							Display: &persesv1.PanelDisplay{
-								Name: "test-panel",
-							},
-							Plugin: persescommon.Plugin{
-								Kind: "PrometheusPlugin",
-								Spec: map[string]any{},
-							},
-						},
-					},
-				},
-			},
-		}
+		var newDashboard *persesv1.Dashboard
 
 		BeforeAll(func() {
 			By("Creating the Namespace to perform the tests")

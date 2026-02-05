@@ -930,10 +930,11 @@ spec:
                         description: Name of basic auth k8s resource (when type is secret or configmap)
                         type: string
                       namespace:
-                        description: Namsespace of certificate k8s resource (when type is secret or configmap)
+                        description: Namespace of certificate k8s resource (when type is secret or configmap)
                         type: string
                       password_path:
                         description: Path to password
+                        minLength: 1
                         type: string
                       type:
                         description: Type source type of secret
@@ -944,6 +945,7 @@ spec:
                         type: string
                       username:
                         description: Username for basic auth
+                        minLength: 1
                         type: string
                     required:
                     - password_path
@@ -985,7 +987,7 @@ spec:
                         description: Name of basic auth k8s resource (when type is secret or configmap)
                         type: string
                       namespace:
-                        description: Namsespace of certificate k8s resource (when type is secret or configmap)
+                        description: Namespace of certificate k8s resource (when type is secret or configmap)
                         type: string
                       scopes:
                         description: Scope specifies optional requested permissions.
@@ -996,6 +998,7 @@ spec:
                         description: |-
                           TokenURL is the resource server's token endpoint
                           URL. This is a constant specific to each server.
+                        minLength: 1
                         type: string
                       type:
                         description: Type source type of secret
@@ -1016,12 +1019,13 @@ spec:
                         properties:
                           certPath:
                             description: Path to Certificate
+                            minLength: 1
                             type: string
                           name:
                             description: Name of basic auth k8s resource (when type is secret or configmap)
                             type: string
                           namespace:
-                            description: Namsespace of certificate k8s resource (when type is secret or configmap)
+                            description: Namespace of certificate k8s resource (when type is secret or configmap)
                             type: string
                           privateKeyPath:
                             description: Path to Private key certificate
@@ -1048,12 +1052,13 @@ spec:
                         properties:
                           certPath:
                             description: Path to Certificate
+                            minLength: 1
                             type: string
                           name:
                             description: Name of basic auth k8s resource (when type is secret or configmap)
                             type: string
                           namespace:
-                            description: Namsespace of certificate k8s resource (when type is secret or configmap)
+                            description: Namespace of certificate k8s resource (when type is secret or configmap)
                             type: string
                           privateKeyPath:
                             description: Path to Private key certificate
@@ -2163,7 +2168,10 @@ spec:
                     type: object
                 type: object
               containerPort:
+                default: 8080
                 format: int32
+                maximum: 65535
+                minimum: 1
                 type: integer
               image:
                 description: Image specifies the container image that should be used for the Perses deployment.
@@ -2526,12 +2534,13 @@ spec:
                     properties:
                       certPath:
                         description: Path to Certificate
+                        minLength: 1
                         type: string
                       name:
                         description: Name of basic auth k8s resource (when type is secret or configmap)
                         type: string
                       namespace:
-                        description: Namsespace of certificate k8s resource (when type is secret or configmap)
+                        description: Namespace of certificate k8s resource (when type is secret or configmap)
                         type: string
                       privateKeyPath:
                         description: Path to Private key certificate
@@ -2558,12 +2567,13 @@ spec:
                     properties:
                       certPath:
                         description: Path to Certificate
+                        minLength: 1
                         type: string
                       name:
                         description: Name of basic auth k8s resource (when type is secret or configmap)
                         type: string
                       namespace:
-                        description: Namsespace of certificate k8s resource (when type is secret or configmap)
+                        description: Namespace of certificate k8s resource (when type is secret or configmap)
                         type: string
                       privateKeyPath:
                         description: Path to Private key certificate
@@ -3599,10 +3609,11 @@ spec:
                         description: Name of basic auth k8s resource (when type is secret or configmap)
                         type: string
                       namespace:
-                        description: Namsespace of certificate k8s resource (when type is secret or configmap)
+                        description: Namespace of certificate k8s resource (when type is secret or configmap)
                         type: string
                       password_path:
                         description: Path to password
+                        minLength: 1
                         type: string
                       type:
                         description: Type source type of secret
@@ -3613,6 +3624,7 @@ spec:
                         type: string
                       username:
                         description: Username for basic auth
+                        minLength: 1
                         type: string
                     required:
                     - password_path
@@ -3654,7 +3666,7 @@ spec:
                         description: Name of basic auth k8s resource (when type is secret or configmap)
                         type: string
                       namespace:
-                        description: Namsespace of certificate k8s resource (when type is secret or configmap)
+                        description: Namespace of certificate k8s resource (when type is secret or configmap)
                         type: string
                       scopes:
                         description: Scope specifies optional requested permissions.
@@ -3665,6 +3677,7 @@ spec:
                         description: |-
                           TokenURL is the resource server's token endpoint
                           URL. This is a constant specific to each server.
+                        minLength: 1
                         type: string
                       type:
                         description: Type source type of secret
@@ -3685,12 +3698,13 @@ spec:
                         properties:
                           certPath:
                             description: Path to Certificate
+                            minLength: 1
                             type: string
                           name:
                             description: Name of basic auth k8s resource (when type is secret or configmap)
                             type: string
                           namespace:
-                            description: Namsespace of certificate k8s resource (when type is secret or configmap)
+                            description: Namespace of certificate k8s resource (when type is secret or configmap)
                             type: string
                           privateKeyPath:
                             description: Path to Private key certificate
@@ -3717,12 +3731,13 @@ spec:
                         properties:
                           certPath:
                             description: Path to Certificate
+                            minLength: 1
                             type: string
                           name:
                             description: Name of basic auth k8s resource (when type is secret or configmap)
                             type: string
                           namespace:
-                            description: Namsespace of certificate k8s resource (when type is secret or configmap)
+                            description: Namespace of certificate k8s resource (when type is secret or configmap)
                             type: string
                           privateKeyPath:
                             description: Path to Private key certificate
@@ -4832,7 +4847,10 @@ spec:
                     type: object
                 type: object
               containerPort:
+                default: 8080
                 format: int32
+                maximum: 65535
+                minimum: 1
                 type: integer
               image:
                 description: Image specifies the container image that should be used for the Perses deployment.
@@ -4986,6 +5004,22 @@ spec:
                     format: int32
                     type: integer
                 type: object
+              logLevel:
+                description: LogLevel defines the log level for Perses.
+                enum:
+                - panic
+                - fatal
+                - error
+                - warning
+                - info
+                - debug
+                - trace
+                type: string
+              logMethodTrace:
+                description: |-
+                  LogMethodTrace when true, includes the calling method as a field in the log.
+                  It can be useful to see immediately where the log comes from.
+                type: boolean
               metadata:
                 description: Metadata to add to deployed pods
                 properties:
@@ -5424,12 +5458,13 @@ spec:
                     properties:
                       certPath:
                         description: Path to Certificate
+                        minLength: 1
                         type: string
                       name:
                         description: Name of basic auth k8s resource (when type is secret or configmap)
                         type: string
                       namespace:
-                        description: Namsespace of certificate k8s resource (when type is secret or configmap)
+                        description: Namespace of certificate k8s resource (when type is secret or configmap)
                         type: string
                       privateKeyPath:
                         description: Path to Private key certificate
@@ -5456,12 +5491,13 @@ spec:
                     properties:
                       certPath:
                         description: Path to Certificate
+                        minLength: 1
                         type: string
                       name:
                         description: Name of basic auth k8s resource (when type is secret or configmap)
                         type: string
                       namespace:
-                        description: Namsespace of certificate k8s resource (when type is secret or configmap)
+                        description: Namespace of certificate k8s resource (when type is secret or configmap)
                         type: string
                       privateKeyPath:
                         description: Path to Private key certificate
