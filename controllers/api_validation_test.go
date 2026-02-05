@@ -22,13 +22,13 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	persesv1 "github.com/perses/perses/pkg/model/api/v1"
-	persescommon "github.com/perses/perses/pkg/model/api/v1/common"
-	persesdashboard "github.com/perses/perses/pkg/model/api/v1/dashboard"
+	persesv1 "github.com/rhobs/perses/pkg/model/api/v1"
+	persescommon "github.com/rhobs/perses/pkg/model/api/v1/common"
+	persesdashboard "github.com/rhobs/perses/pkg/model/api/v1/dashboard"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	persesv1alpha2 "github.com/perses/perses-operator/api/v1alpha2"
+	persesv1alpha2 "github.com/rhobs/perses-operator/api/v1alpha2"
 )
 
 var _ = Describe("API Validation", func() {
