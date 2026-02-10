@@ -35,14 +35,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	persesv1alpha1 "github.com/perses/perses-operator/api/v1alpha1"
-	persesv1alpha2 "github.com/perses/perses-operator/api/v1alpha2"
-	dashboardcontroller "github.com/perses/perses-operator/controllers/dashboards"
-	datasourcecontroller "github.com/perses/perses-operator/controllers/datasources"
-	globaldatasourcecontroller "github.com/perses/perses-operator/controllers/globaldatasources"
-	persescontroller "github.com/perses/perses-operator/controllers/perses"
-	operatormetrics "github.com/perses/perses-operator/internal/metrics"
-	"github.com/perses/perses-operator/internal/perses/common"
+	persesv1alpha1 "github.com/rhobs/perses-operator/api/v1alpha1"
+	persesv1alpha2 "github.com/rhobs/perses-operator/api/v1alpha2"
+	dashboardcontroller "github.com/rhobs/perses-operator/controllers/dashboards"
+	datasourcecontroller "github.com/rhobs/perses-operator/controllers/datasources"
+	globaldatasourcecontroller "github.com/rhobs/perses-operator/controllers/globaldatasources"
+	persescontroller "github.com/rhobs/perses-operator/controllers/perses"
+	operatormetrics "github.com/rhobs/perses-operator/internal/metrics"
+	"github.com/rhobs/perses-operator/internal/perses/common"
 	//+kubebuilder:scaffold:imports
 )
 

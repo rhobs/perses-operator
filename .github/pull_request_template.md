@@ -1,6 +1,6 @@
 <!--
   See the contributing guide for detailed guidance about contributing.
-  https://github.com/perses/perses-operator/blob/main/CONTRIBUTING.md
+  https://github.com/rhobs/perses-operator/blob/main/CONTRIBUTING.md
 -->
 
 ## Description

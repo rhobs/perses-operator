@@ -11,19 +11,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// package main
+
+// import (
+// 	_ "embed"
+
+// 	"github.com/rhobs/perses/scripts/generate-goreleaser"
+// )
+
+// //go:embed .goreleaser.base.yaml
+// var baseConfig []byte
+
+// func main() {
+// 	generate(baseConfig, "perses-operator", []string{
+// 		"LICENSE",
+// 	})
+// }
+
 package main
 
 import (
 	_ "embed"
 
-	goreleasergenerate "github.com/perses/perses/scripts/generate-docker-goreleaser-config"
+	"github.com/rhobs/perses/scripts/generate-goreleaser/dockerconfig"
+	"github.com/rhobs/perses/scripts/pkg/goreleaser"
 )
 
 //go:embed .goreleaser.base.yaml
 var baseConfig []byte
 
+func generate(cfg dockerconfig.TestConfig) {
+	goreleaser.Generate(baseConfig, dockerconfig.PersesDockerConfig(cfg))
+}
+
 func main() {
-	goreleasergenerate.GenerateGoreleaserConfig(baseConfig, "perses-operator", []string{
-		"LICENSE",
-	})
+	generate(dockerconfig.TestConfig{})
 }

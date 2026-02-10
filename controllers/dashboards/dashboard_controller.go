@@ -22,17 +22,17 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/perses/perses/pkg/client/perseshttp"
-	persesv1 "github.com/perses/perses/pkg/model/api/v1"
-	persesv1Common "github.com/perses/perses/pkg/model/api/v1/common"
+	"github.com/rhobs/perses/pkg/client/perseshttp"
+	persesv1 "github.com/rhobs/perses/pkg/model/api/v1"
+	persesv1Common "github.com/rhobs/perses/pkg/model/api/v1/common"
 
 	logger "github.com/sirupsen/logrus"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	persesv1alpha2 "github.com/perses/perses-operator/api/v1alpha2"
-	"github.com/perses/perses-operator/internal/perses/common"
-	"github.com/perses/perses-operator/internal/subreconciler"
+	persesv1alpha2 "github.com/rhobs/perses-operator/api/v1alpha2"
+	"github.com/rhobs/perses-operator/internal/perses/common"
+	"github.com/rhobs/perses-operator/internal/subreconciler"
 )
 
 var dlog = logger.WithField("module", "dashboard_controller")

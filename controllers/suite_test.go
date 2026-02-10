@@ -34,8 +34,8 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/perses/perses-operator/api/v1alpha2"
-	persesController "github.com/perses/perses-operator/controllers/perses"
+	"github.com/rhobs/perses-operator/api/v1alpha2"
+	persesController "github.com/rhobs/perses-operator/controllers/perses"
 	//+kubebuilder:scaffold:imports
 )
 

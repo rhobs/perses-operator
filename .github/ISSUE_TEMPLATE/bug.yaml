@@ -6,7 +6,7 @@ body:
     attributes:
       label: Is there an existing issue for this?
       description: |
-        Before filing a bug, please search through [existing bugs](https://github.com/perses/perses-operator/issues?q=is%3Aopen+is%3Aissue+label%3Akind%2Fbug).
+        Before filing a bug, please search through [existing bugs](https://github.com/rhobs/perses-operator/issues?q=is%3Aopen+is%3Aissue+label%3Akind%2Fbug).
       options:
         - label: I have searched the existing issues
           required: true
