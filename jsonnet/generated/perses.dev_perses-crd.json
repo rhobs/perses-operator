@@ -1663,6 +1663,7 @@
                               },
                               "options": {
                                 "items": {
+                                  "description": "DurationString is a string that represents a duration, such as \"1h\", \"30m\", \"15s\", etc.\nIt is used to unmarshal a duration string from JSON or YAML, and validate that it is a valid duration string.\n\nNot converting the duration string into a time.Duration type allows us to avoid the issue of changing the initial input with an alias.\nThis is something that happens when we use Duration type, because when the duration is unmarshalled then marshaled again, the input can be changed with an equivalent duration.\nFor example \"14d\" will be changed to \"2w\".\n\nSo, use DurationString instead of Duration when you want to preserve the original input string.\nIf, for any reason, you need to convert the DurationString to a time.Duration, you can use the ParseDuration function.",
                                   "format": "duration",
                                   "pattern": "^(([0-9]+)y)?(([0-9]+)w)?(([0-9]+)d)?(([0-9]+)h)?(([0-9]+)m)?(([0-9]+)s)?(([0-9]+)ms)?$",
                                   "type": "string"
@@ -1683,8 +1684,15 @@
                         "description": "Plugin contains the config for runtime plugins.",
                         "properties": {
                           "archive_path": {
-                            "description": "ArchivePath is the path to the directory containing the archived plugins\nWhen Perses is starting, it will extract the content of the archive in the folder specified in the `folder` attribute.",
+                            "description": "ArchivePath is the path to the directory containing the archived plugins\nWhen Perses is starting, it will extract the content of the archive in the folder specified in the `folder` attribute.\nDEPRECATED: This attribute is deprecated and will be removed in a future version. It is still supported for backward compatibility, but it is recommended to use the `archive_paths` attribute instead.",
                             "type": "string"
+                          },
+                          "archive_paths": {
+                            "description": "ArchivePaths is the list of paths to the directories containing the archived plugins. It allows to specify multiple directories for the archived plugins.\nWhen Perses is starting, it will extract any archive found in the folders specified in this attribute in the folder specified in the `path` attribute.",
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array"
                           },
                           "enable_dev": {
                             "description": "DevEnvironment is the configuration to use when developing a plugin",
@@ -2089,6 +2097,9 @@
                                           "properties": {
                                             "enabled": {
                                               "type": "boolean"
+                                            },
+                                            "logout_redirect_param_name": {
+                                              "type": "string"
                                             }
                                           },
                                           "required": [
@@ -4662,6 +4673,7 @@
                               },
                               "options": {
                                 "items": {
+                                  "description": "DurationString is a string that represents a duration, such as \"1h\", \"30m\", \"15s\", etc.\nIt is used to unmarshal a duration string from JSON or YAML, and validate that it is a valid duration string.\n\nNot converting the duration string into a time.Duration type allows us to avoid the issue of changing the initial input with an alias.\nThis is something that happens when we use Duration type, because when the duration is unmarshalled then marshaled again, the input can be changed with an equivalent duration.\nFor example \"14d\" will be changed to \"2w\".\n\nSo, use DurationString instead of Duration when you want to preserve the original input string.\nIf, for any reason, you need to convert the DurationString to a time.Duration, you can use the ParseDuration function.",
                                   "format": "duration",
                                   "pattern": "^(([0-9]+)y)?(([0-9]+)w)?(([0-9]+)d)?(([0-9]+)h)?(([0-9]+)m)?(([0-9]+)s)?(([0-9]+)ms)?$",
                                   "type": "string"
@@ -4682,8 +4694,15 @@
                         "description": "Plugin contains the config for runtime plugins.",
                         "properties": {
                           "archive_path": {
-                            "description": "ArchivePath is the path to the directory containing the archived plugins\nWhen Perses is starting, it will extract the content of the archive in the folder specified in the `folder` attribute.",
+                            "description": "ArchivePath is the path to the directory containing the archived plugins\nWhen Perses is starting, it will extract the content of the archive in the folder specified in the `folder` attribute.\nDEPRECATED: This attribute is deprecated and will be removed in a future version. It is still supported for backward compatibility, but it is recommended to use the `archive_paths` attribute instead.",
                             "type": "string"
+                          },
+                          "archive_paths": {
+                            "description": "ArchivePaths is the list of paths to the directories containing the archived plugins. It allows to specify multiple directories for the archived plugins.\nWhen Perses is starting, it will extract any archive found in the folders specified in this attribute in the folder specified in the `path` attribute.",
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array"
                           },
                           "enable_dev": {
                             "description": "DevEnvironment is the configuration to use when developing a plugin",
@@ -5088,6 +5107,9 @@
                                           "properties": {
                                             "enabled": {
                                               "type": "boolean"
+                                            },
+                                            "logout_redirect_param_name": {
+                                              "type": "string"
                                             }
                                           },
                                           "required": [
