@@ -107,6 +107,24 @@ spec:
                   - spec
                   type: object
                 type: array
+              links:
+                description: Links is an optional list of links to display at the dashboard level
+                items:
+                  properties:
+                    name:
+                      type: string
+                    renderVariables:
+                      type: boolean
+                    targetBlank:
+                      type: boolean
+                    tooltip:
+                      type: string
+                    url:
+                      type: string
+                  required:
+                  - url
+                  type: object
+                type: array
               panels:
                 additionalProperties:
                   properties:
@@ -382,6 +400,24 @@ spec:
                       required:
                       - kind
                       - spec
+                      type: object
+                    type: array
+                  links:
+                    description: Links is an optional list of links to display at the dashboard level
+                    items:
+                      properties:
+                        name:
+                          type: string
+                        renderVariables:
+                          type: boolean
+                        targetBlank:
+                          type: boolean
+                        tooltip:
+                          type: string
+                        url:
+                          type: string
+                      required:
+                      - url
                       type: object
                     type: array
                   panels:
