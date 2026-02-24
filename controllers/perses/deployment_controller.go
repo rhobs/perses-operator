@@ -46,13 +46,13 @@ func (r *PersesReconciler) reconcileDeployment(ctx context.Context, req ctrl.Req
 		return subreconciler.RequeueWithError(fmt.Errorf("perses not found in context"))
 	}
 
-	if perses.Spec.Config.Database.SQL == nil {
-		dlog.Debug("Database SQL configuration is not set, skipping Deployment creation")
+	if !perses.RequiresDeployment() {
+		dlog.Debug("Neither SQL database nor file database with EmptyDir configured, skipping Deployment creation")
 
 		found := &appsv1.Deployment{}
 		err := r.Get(ctx, types.NamespacedName{Name: perses.Name, Namespace: perses.Namespace}, found)
 		if err == nil {
-			dlog.Info("Deleting Deployment since database configuration changed")
+			dlog.Info("Deleting Deployment since configuration changed")
 			if err := r.Delete(ctx, found); err != nil {
 				dlog.WithError(err).Error("Failed to delete Deployment")
 				return subreconciler.RequeueWithError(err)
@@ -177,8 +177,13 @@ func (r *PersesReconciler) createPersesDeployment(
 							},
 						},
 						Ports: []corev1.ContainerPort{{
-							ContainerPort: perses.Spec.ContainerPort,
-							Name:          "perses",
+							ContainerPort: func() int32 {
+								if perses.Spec.ContainerPort != nil {
+									return *perses.Spec.ContainerPort
+								}
+								return 8080
+							}(),
+							Name: "perses",
 						}},
 						VolumeMounts:   common.GetVolumeMounts(perses),
 						Args:           common.GetPersesArgs(perses),
@@ -210,8 +215,8 @@ func (r *PersesReconciler) createPersesDeployment(
 		dep.Spec.Template.Spec.Containers[0].Resources = *perses.Spec.Resources
 	}
 
-	if perses.Spec.ServiceAccountName != "" {
-		dep.Spec.Template.Spec.ServiceAccountName = perses.Spec.ServiceAccountName
+	if perses.Spec.ServiceAccountName != nil && *perses.Spec.ServiceAccountName != "" {
+		dep.Spec.Template.Spec.ServiceAccountName = *perses.Spec.ServiceAccountName
 	}
 
 	// Set the ownerRef for the Deployment

@@ -16,6 +16,7 @@ import (
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	persesv1alpha2 "github.com/rhobs/perses-operator/api/v1alpha2"
@@ -27,20 +28,14 @@ import (
 var _ = Describe("GlobalDatasource controller", Ordered, func() {
 	Context("GlobalDatasource controller test", func() {
 		const PersesName = "perses-for-globaldatasource"
-		const PersesNamespace = "perses-globaldatasource-test"
 		const GlobalDatasourceName = "my-custom-globaldatasource"
 		const PersesSecretName = GlobalDatasourceName + "-secret"
 
 		ctx := context.Background()
 
-		namespace := &corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      PersesNamespace,
-				Namespace: PersesNamespace,
-			},
-		}
-
-		persesNamespaceName := types.NamespacedName{Name: PersesName, Namespace: PersesNamespace}
+		var namespace *corev1.Namespace
+		var PersesNamespace string
+		var persesNamespaceName types.NamespacedName
 		globaldatasourceNamespaceName := types.NamespacedName{Name: GlobalDatasourceName}
 
 		persesImage := "perses-dev.io/perses:test"
@@ -50,8 +45,15 @@ var _ = Describe("GlobalDatasource controller", Ordered, func() {
 
 		BeforeAll(func() {
 			By("Creating the Namespace to perform the tests")
+			namespace = &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "perses-globaldatasource-test-",
+				},
+			}
 			err := k8sClient.Create(ctx, namespace)
 			Expect(err).To(Not(HaveOccurred()))
+			PersesNamespace = namespace.Name
+			persesNamespaceName = types.NamespacedName{Name: PersesName, Namespace: PersesNamespace}
 
 			By("Setting the Image ENV VAR which stores the Operand image")
 			err = os.Setenv("PERSES_IMAGE", persesImage)
@@ -68,12 +70,30 @@ var _ = Describe("GlobalDatasource controller", Ordered, func() {
 						Namespace: PersesNamespace,
 					},
 					Spec: persesv1alpha2.PersesSpec{
-						ContainerPort: 8080,
+						ContainerPort: ptr.To(int32(8080)),
 					},
 				}
 
 				err = k8sClient.Create(ctx, perses)
 				Expect(err).To(Not(HaveOccurred()))
+
+				// Set the Perses instance status to Available so child controllers
+				// consider it ready for syncing.
+				// Use Eventually to handle potential resource version conflicts
+				Eventually(func() error {
+					// Fetch the latest version of the resource
+					if err := k8sClient.Get(ctx, persesNamespaceName, perses); err != nil {
+						return err
+					}
+					perses.Status.Conditions = []metav1.Condition{{
+						Type:               common.TypeAvailablePerses,
+						Status:             metav1.ConditionTrue,
+						Reason:             "Testing",
+						Message:            "Available for testing",
+						LastTransitionTime: metav1.Now(),
+					}}
+					return k8sClient.Status().Update(ctx, perses)
+				}, time.Second*10, time.Millisecond*250).Should(Succeed())
 			}
 
 			newSecret = &persesv1.GlobalSecret{

@@ -125,10 +125,20 @@ checkformat:
 	@echo ">> checking go code format"
 	! gofmt -d $$(find . -name '*.go' -print) | grep '^'
 
-.PHONY: checkunused
-checkunused:
+.PHONY: update-go-deps
+update-go-deps: ## Update all Go dependencies to latest versions
+	@echo ">> updating Go dependencies"
+	@for m in $$(go list -mod=readonly -m -f '{{ if and (not .Indirect) (not .Main)}}{{.Path}}{{end}}' all); do \
+		echo "Updating $$m"; \
+		go get -u $$m; \
+	done
+	@go mod tidy -v
+	@echo ">> Dependencies updated, run tests before committing."
+
+.PHONY: tidy
+tidy: ## Verify that go.mod and go.sum are tidy (for CI)
 	@echo ">> running check for unused/missing packages in go.mod"
-	go mod tidy
+	@go mod tidy
 	@git diff --exit-code -- go.sum go.mod
 
 ##@ Development
@@ -235,28 +245,43 @@ test-unit: fmt vet ## Run unit tests.
 	go test $(shell go list ./... | grep -v ./controllers) -v -coverprofile cover-unit.out
 
 .PHONY: test-integration
-test-integration: manifests generate fmt vet envtest ## Run integration tests using envtest.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./controllers/... -v -coverprofile cover-integration.out
+test-integration: manifests generate fmt vet envtest ginkgo ## Run integration tests in parallel using envtest.
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" $(GINKGO) --procs=4 -v --coverprofile=cover-integration.out --output-dir=. ./controllers/...
 
 .PHONY: lint-jsonnet
 lint-jsonnet: $(JSONNETLINT_BINARY)
 	@echo ">>>>> Running linter"
 	echo ${JSONNET_SRC} | $(XARGS) -n 1 -- $(JSONNETLINT_BINARY)
 
+.PHONY: lint-golang
+lint-golang: golangci-lint ## Run Go linting.
+	$(GOLANGCI_LINT) run --timeout 5m
+
 .PHONY: lint
-lint: lint-jsonnet ## Run linting.
-	golangci-lint run
+lint: lint-jsonnet lint-golang ## Run all linters.
+
+.PHONY: lint-api
+lint-api: golangci-lint-kube-api-linter ## Lint API types using kube-api-linter.
+	$(GOLANGCI_LINT_KAL) run -c .golangci-kube-api-linter.yml
 
 ##@ E2E Testing
 
 KIND_CLUSTER_NAME ?= kuttl-e2e
+KIND_VERSION ?= $(shell grep kind-version .github/env | sed 's/kind-version=//')
+KIND_NODE_IMAGE ?= $(shell grep kind-image .github/env | sed 's/kind-image=//')
 E2E_TAG ?= $(shell git rev-parse --short HEAD)
 E2E_IMG ?= $(IMAGE_TAG_BASE):$(E2E_TAG)
 
+.PHONY: e2e-versions
+e2e-versions: ## Display versions used for e2e testing.
+	@echo "Kind version: $(KIND_VERSION)"
+	@echo "Kind node image: $(KIND_NODE_IMAGE)"
+	@echo "Go version: $(shell grep golang-version .github/env | sed 's/golang-version=//')"
+
 .PHONY: e2e-create-cluster
 e2e-create-cluster: ## Create a kind cluster for e2e tests.
-	@echo ">> Creating kind cluster..."
-	kind create cluster --name $(KIND_CLUSTER_NAME) --wait 5m 2>/dev/null || true
+	@echo ">> Creating kind cluster with image $(KIND_NODE_IMAGE)..."
+	kind create cluster --name $(KIND_CLUSTER_NAME) --image $(KIND_NODE_IMAGE) --wait 5m 2>/dev/null || true
 
 .PHONY: e2e-deploy
 e2e-deploy: manifests generate kustomize check-container-runtime ## Build operator image, load into kind and deploy.

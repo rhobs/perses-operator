@@ -27,6 +27,9 @@ import (
 	persesv1Common "github.com/rhobs/perses/pkg/model/api/v1/common"
 
 	logger "github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -38,9 +41,29 @@ import (
 var dlog = logger.WithField("module", "dashboard_controller")
 
 func (r *PersesDashboardReconciler) reconcileDashboardInAllInstances(ctx context.Context, req ctrl.Request) (*ctrl.Result, error) {
+	dashboard, ok := dashboardFromContext(ctx)
+	if !ok {
+		dlog.Error("dashboard not found in context")
+		res, err := subreconciler.RequeueWithError(fmt.Errorf("dashboard not found in context"))
+		return r.setStatusToDegraded(ctx, req, res, common.ReasonMissingResource, err)
+	}
+
+	var labelSelector labels.Selector
+	if dashboard.Spec.InstanceSelector == nil {
+		labelSelector = labels.Everything()
+	} else {
+		var err error
+		labelSelector, err = metav1.LabelSelectorAsSelector(dashboard.Spec.InstanceSelector)
+		if err != nil {
+			return subreconciler.RequeueWithError(err)
+		}
+	}
+
 	persesInstances := &persesv1alpha2.PersesList{}
-	var opts []client.ListOption
-	err := r.List(ctx, persesInstances, opts...)
+	opts := &client.ListOptions{
+		LabelSelector: labelSelector,
+	}
+	err := r.List(ctx, persesInstances, opts)
 	if err != nil {
 		dlog.WithError(err).Error("Failed to get perses instances")
 		res, err := subreconciler.RequeueWithError(err)
@@ -54,14 +77,11 @@ func (r *PersesDashboardReconciler) reconcileDashboardInAllInstances(ctx context
 
 	}
 
-	dashboard, ok := dashboardFromContext(ctx)
-	if !ok {
-		dlog.Error("dashboard not found in context")
-		res, err := subreconciler.RequeueWithError(fmt.Errorf("dashboard not found in context"))
-		return r.setStatusToDegraded(ctx, req, res, common.ReasonMissingResource, err)
-	}
-
 	for _, persesInstance := range persesInstances.Items {
+		if !meta.IsStatusConditionTrue(persesInstance.Status.Conditions, common.TypeAvailablePerses) {
+			dlog.Infof("Skipping Perses instance %s/%s (not yet available)", persesInstance.Namespace, persesInstance.Name)
+			continue
+		}
 		if res, reason, err := r.syncPersesDashboard(ctx, persesInstance, dashboard); subreconciler.ShouldHaltOrRequeue(res, err) {
 			return r.setStatusToDegraded(ctx, req, res, reason, err)
 		}

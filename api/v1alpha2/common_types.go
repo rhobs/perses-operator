@@ -1,5 +1,5 @@
 /*
-Copyright 2025 The Perses Authors.
+Copyright The Perses Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,8 +32,9 @@ var volumeNameRegex = regexp.MustCompile(`[^a-z0-9]+`)
 
 // Provisioning configuration for provisioning secrets
 type Provisioning struct {
-	// SecretRefs is a list of references to Kubernetes secrets used for provisioning sensitive data.
+	// secretRefs is a list of references to Kubernetes secrets used for provisioning sensitive data.
 	// +optional
+	//nolint:kubeapilinter // SecretKeySelector fields are defined in an external type
 	SecretRefs []*ProvisioningSecret `json:"secretRefs,omitempty"`
 }
 
@@ -58,6 +59,12 @@ func (p *ProvisioningSecret) GetSecretVolumeName() string {
 
 // SecretVersion represents a secret version
 type SecretVersion struct {
-	Name    string `json:"name"`
-	Version string `json:"version"`
+	// name is the name of the provisioning secret
+	// +required
+	// +kubebuilder:validation:MinLength=1
+	Name string `json:"name,omitempty"`
+	// version is the resource version of the provisioning secret
+	// +required
+	// +kubebuilder:validation:MinLength=1
+	Version string `json:"version,omitempty"`
 }

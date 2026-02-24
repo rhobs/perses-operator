@@ -398,10 +398,10 @@
                 "type": "object"
               },
               "spec": {
-                "description": "PersesDashboardSpec defines the desired state of PersesDashboard",
+                "description": "spec is the desired state of the PersesDashboard resource",
                 "properties": {
                   "config": {
-                    "description": "Perses dashboard configuration",
+                    "description": "config specifies the Perses dashboard configuration",
                     "properties": {
                       "datasources": {
                         "additionalProperties": {
@@ -673,7 +673,7 @@
                     "type": "object"
                   },
                   "instanceSelector": {
-                    "description": "InstanceSelector selects Perses instances where this dashboard will be created",
+                    "description": "instanceSelector selects Perses instances where this dashboard will be created",
                     "properties": {
                       "matchExpressions": {
                         "description": "matchExpressions is a list of label selector requirements. The requirements are ANDed.",
@@ -724,10 +724,10 @@
                 "type": "object"
               },
               "status": {
-                "description": "PersesDashboardStatus defines the observed state of PersesDashboard",
+                "description": "status is the observed state of the PersesDashboard resource",
                 "properties": {
                   "conditions": {
-                    "description": "Conditions represent the latest observations of the PersesDashboard resource state",
+                    "description": "conditions represent the latest observations of the PersesDashboard resource state",
                     "items": {
                       "description": "Condition contains details for one aspect of the current state of this API Resource.",
                       "properties": {
@@ -779,12 +779,19 @@
                       ],
                       "type": "object"
                     },
-                    "type": "array"
+                    "type": "array",
+                    "x-kubernetes-list-map-keys": [
+                      "type"
+                    ],
+                    "x-kubernetes-list-type": "map"
                   }
                 },
                 "type": "object"
               }
             },
+            "required": [
+              "spec"
+            ],
             "type": "object"
           }
         },

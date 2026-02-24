@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	persesv1alpha2 "github.com/rhobs/perses-operator/api/v1alpha2"
@@ -68,17 +69,17 @@ var _ = Describe("Perses controller", func() {
 								"instance": PersesName,
 							},
 						},
-						ServiceAccountName: "perses-service-account",
+						ServiceAccountName: ptr.To("perses-service-account"),
 						Replicas:           &replicas,
 						Resources: &corev1.ResourceRequirements{
 							Requests: corev1.ResourceList{
 								corev1.ResourceMemory: resource.MustParse("128Mi"),
 							},
 						},
-						ContainerPort: 8080,
-						Image:         persesImage,
+						ContainerPort: ptr.To(int32(8080)),
+						Image:         ptr.To(persesImage),
 						Service: &persesv1alpha2.PersesService{
-							Name: persesServiceName,
+							Name: ptr.To(persesServiceName),
 							Annotations: map[string]string{
 								"custom-annotation": "true",
 							},
@@ -299,7 +300,7 @@ var _ = Describe("Perses controller", func() {
 								"instance": PersesStorageName,
 							},
 						},
-						Image: persesImage,
+						Image: ptr.To(persesImage),
 						Config: persesv1alpha2.PersesConfig{
 							Config: persesconfig.Config{
 								Database: persesconfig.Database{
@@ -310,7 +311,13 @@ var _ = Describe("Perses controller", func() {
 							},
 						},
 						Storage: &persesv1alpha2.StorageConfiguration{
-							Size: resource.MustParse("10Gi"),
+							PersistentVolumeClaimTemplate: &corev1.PersistentVolumeClaimSpec{
+								Resources: corev1.VolumeResourceRequirements{
+									Requests: corev1.ResourceList{
+										corev1.ResourceStorage: resource.MustParse("10Gi"),
+									},
+								},
+							},
 						},
 					},
 				}
@@ -421,6 +428,7 @@ var _ = Describe("Perses controller", func() {
 			typeNamespaceName := types.NamespacedName{Name: PersesProvisioningName, Namespace: persesNamespace}
 			secretName := "encrypted-key-secret"
 			secretNamespaceName := types.NamespacedName{Name: secretName, Namespace: persesNamespace}
+			var err error
 
 			By("Creating the provisioning secret")
 			secretKey := "encrypted-key"
@@ -442,7 +450,7 @@ var _ = Describe("Perses controller", func() {
 					Namespace: persesNamespace,
 				},
 				Spec: persesv1alpha2.PersesSpec{
-					Image: persesImage,
+					Image: ptr.To(persesImage),
 					Config: persesv1alpha2.PersesConfig{
 						Config: persesconfig.Config{
 							Database: persesconfig.Database{
@@ -483,10 +491,12 @@ var _ = Describe("Perses controller", func() {
 			}
 
 			By("Reconciling the custom resource created")
-			_, err := persesReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: typeNamespaceName,
-			})
-			Expect(err).NotTo(HaveOccurred())
+			Eventually(func() error {
+				_, err := persesReconciler.Reconcile(ctx, reconcile.Request{
+					NamespacedName: typeNamespaceName,
+				})
+				return err
+			}, time.Second*10, time.Millisecond*250).Should(Succeed())
 
 			var initialHash string
 			var initialResourceVersion string
@@ -564,7 +574,7 @@ var _ = Describe("Perses controller", func() {
 					Namespace: persesNamespace,
 				},
 				Spec: persesv1alpha2.PersesSpec{
-					Image: persesImage,
+					Image: ptr.To(persesImage),
 					Config: persesv1alpha2.PersesConfig{
 						Config: persesconfig.Config{
 							Database: persesconfig.Database{
@@ -591,17 +601,12 @@ var _ = Describe("Perses controller", func() {
 			}
 
 			By("Reconciling to add the finalizer")
-			// First reconcile sets status to unknown
-			_, err = persesReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: typeNamespaceName,
-			})
-			Expect(err).To(Not(HaveOccurred()))
-
-			// Second reconcile adds the finalizer and creates resources
-			_, err = persesReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: typeNamespaceName,
-			})
-			Expect(err).To(Not(HaveOccurred()))
+			Eventually(func() error {
+				_, err := persesReconciler.Reconcile(ctx, reconcile.Request{
+					NamespacedName: typeNamespaceName,
+				})
+				return err
+			}, time.Second*10, time.Millisecond*250).Should(Succeed())
 
 			By("Checking if the finalizer was added")
 			Eventually(func() bool {
@@ -621,12 +626,12 @@ var _ = Describe("Perses controller", func() {
 			Expect(err).To(Not(HaveOccurred()))
 
 			By("Reconciling after deletion to trigger finalizer removal")
-			//nolint:staticcheck,ineffassign
-			_, err = persesReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: typeNamespaceName,
-			})
-			// Error is expected if the resource is already gone, or nil if handleDelete succeeded
-			// We just care that the reconcile doesn't panic
+			Eventually(func() error {
+				_, err := persesReconciler.Reconcile(ctx, reconcile.Request{
+					NamespacedName: typeNamespaceName,
+				})
+				return err
+			}, time.Second*10, time.Millisecond*250).Should(Succeed())
 
 			By("Checking if the Perses resource was fully deleted (finalizer removed)")
 			Eventually(func() bool {

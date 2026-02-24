@@ -1,5 +1,5 @@
 /*
-Copyright 2023 The Perses Authors.
+Copyright The Perses Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,7 +16,13 @@ limitations under the License.
 
 package common
 
-import "github.com/rhobs/perses-operator/api/v1alpha2"
+import (
+	"github.com/rhobs/perses-operator/api/v1alpha2"
+	"k8s.io/apimachinery/pkg/api/meta"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+)
 
 const (
 	PersesNamespaceDomain     = "perses.dev"
@@ -64,7 +70,8 @@ const (
 func isTLSEnabled(perses *v1alpha2.Perses) bool {
 	return perses != nil &&
 		perses.Spec.TLS != nil &&
-		perses.Spec.TLS.Enable
+		perses.Spec.TLS.Enable != nil &&
+		*perses.Spec.TLS.Enable
 }
 
 // hasTLSConfiguration checks if valid TLS configuration is present
@@ -72,7 +79,8 @@ func hasTLSConfiguration(perses *v1alpha2.Perses) bool {
 	return isTLSEnabled(perses) &&
 		perses.Spec.TLS.UserCert != nil &&
 		perses.Spec.TLS.UserCert.CertPath != "" &&
-		perses.Spec.TLS.UserCert.PrivateKeyPath != ""
+		perses.Spec.TLS.UserCert.PrivateKeyPath != nil &&
+		*perses.Spec.TLS.UserCert.PrivateKeyPath != ""
 }
 
 // isClientTLSEnabled checks if TLS is enabled in the Perses client configuration
@@ -80,12 +88,51 @@ func isClientTLSEnabled(perses *v1alpha2.Perses) bool {
 	return perses != nil &&
 		perses.Spec.Client != nil &&
 		perses.Spec.Client.TLS != nil &&
-		perses.Spec.Client.TLS.Enable
+		perses.Spec.Client.TLS.Enable != nil &&
+		*perses.Spec.Client.TLS.Enable
 }
 
 func isKubernetesAuthEnabled(perses *v1alpha2.Perses) bool {
 	return perses != nil &&
 		perses.Spec.Client != nil &&
 		perses.Spec.Client.KubernetesAuth != nil &&
-		perses.Spec.Client.KubernetesAuth.Enable
+		perses.Spec.Client.KubernetesAuth.Enable != nil &&
+		*perses.Spec.Client.KubernetesAuth.Enable
+}
+
+// PersesBecameAvailable returns true when a Perses instance transitions
+// to Available status, indicating its API is ready to accept requests.
+func PersesBecameAvailable(oldObj, newObj client.Object) bool {
+	oldPerses, ok := oldObj.(*v1alpha2.Perses)
+	if !ok {
+		return false
+	}
+	newPerses, ok := newObj.(*v1alpha2.Perses)
+	if !ok {
+		return false
+	}
+	wasAvailable := meta.IsStatusConditionTrue(oldPerses.Status.Conditions, TypeAvailablePerses)
+	isAvailable := meta.IsStatusConditionTrue(newPerses.Status.Conditions, TypeAvailablePerses)
+	return !wasAvailable && isAvailable
+}
+
+// PersesAvailabilityPredicate returns a predicate that triggers reconciliation
+// when a Perses instance becomes available or is deleted. This is used by
+// child resource controllers (Dashboard, Datasource, GlobalDatasource) to
+// reconcile their resources when the parent Perses instance becomes ready.
+func PersesAvailabilityPredicate() predicate.Funcs {
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			return false
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			return PersesBecameAvailable(e.ObjectOld, e.ObjectNew)
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return false
+		},
+		GenericFunc: func(e event.GenericEvent) bool {
+			return false
+		},
+	}
 }

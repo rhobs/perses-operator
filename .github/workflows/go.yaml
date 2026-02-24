@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   gofmt:
-    name: 'check code format'
+    name: "check code format"
     runs-on: ubuntu-latest
     steps:
       - name: checkout
@@ -27,10 +27,10 @@ jobs:
           enable_go: true
       - name: check format
         run: make checkformat
-      - name: check go.mod
-        run: make checkunused
+      - name: verify go modules
+        run: make tidy
   test-unit:
-    name: 'unit tests'
+    name: "unit tests"
     runs-on: ubuntu-latest
     steps:
       - name: checkout
@@ -42,7 +42,7 @@ jobs:
       - name: unit tests
         run: make test-unit
   test-integration:
-    name: 'integration tests'
+    name: "integration tests"
     runs-on: ubuntu-latest
     steps:
       - name: checkout
@@ -53,7 +53,19 @@ jobs:
           enable_go: true
       - name: integration tests
         run: make test-integration
-  golangci:
+  lint-api:
+    name: "kube-api-linter"
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v6
+      - uses: perses/github-actions@v0.11.0
+      - uses: ./.github/perses-ci/actions/setup_environment
+        with:
+          enable_go: true
+      - name: lint API types
+        run: make lint-api
+  lint:
     name: lint
     runs-on: ubuntu-latest
     steps:
@@ -70,8 +82,4 @@ jobs:
       - name: check bundle changes
         run: make bundle-check
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v9.2.0
-        with:
-          # Required: the version of golangci-lint is required and must be specified without patch version: we always use the latest patch version.
-          version: v2.4.0
-          args: --timeout 5m
+        run: make lint

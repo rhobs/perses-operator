@@ -27,6 +27,7 @@ import (
 	persesdashboard "github.com/rhobs/perses/pkg/model/api/v1/dashboard"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	persesv1alpha2 "github.com/rhobs/perses-operator/api/v1alpha2"
 )
@@ -43,12 +44,13 @@ var _ = Describe("API Validation", func() {
 					Namespace: persesNamespace,
 				},
 				Spec: persesv1alpha2.PersesSpec{
-					ContainerPort: 8080,
+					ContainerPort: ptr.To(int32(8080)),
 					Client: &persesv1alpha2.Client{
 						BasicAuth: &persesv1alpha2.BasicAuth{
 							SecretSource: persesv1alpha2.SecretSource{
-								Type: persesv1alpha2.SecretSourceTypeSecret,
-								Name: "my-secret",
+								Type:      persesv1alpha2.SecretSourceTypeSecret,
+								Name:      ptr.To("my-secret"),
+								Namespace: ptr.To("default"),
 							},
 							Username:     "", // Invalid: required
 							PasswordPath: "/path/to/password",
@@ -71,12 +73,13 @@ var _ = Describe("API Validation", func() {
 					Namespace: persesNamespace,
 				},
 				Spec: persesv1alpha2.PersesSpec{
-					ContainerPort: 8080,
+					ContainerPort: ptr.To(int32(8080)),
 					Client: &persesv1alpha2.Client{
 						BasicAuth: &persesv1alpha2.BasicAuth{
 							SecretSource: persesv1alpha2.SecretSource{
-								Type: persesv1alpha2.SecretSourceTypeSecret,
-								Name: "my-secret",
+								Type:      persesv1alpha2.SecretSourceTypeSecret,
+								Name:      ptr.To("my-secret"),
+								Namespace: ptr.To("default"),
 							},
 							Username:     "admin",
 							PasswordPath: "", // Invalid: required
@@ -99,12 +102,13 @@ var _ = Describe("API Validation", func() {
 					Namespace: persesNamespace,
 				},
 				Spec: persesv1alpha2.PersesSpec{
-					ContainerPort: 8080,
+					ContainerPort: ptr.To(int32(8080)),
 					Client: &persesv1alpha2.Client{
 						BasicAuth: &persesv1alpha2.BasicAuth{
 							SecretSource: persesv1alpha2.SecretSource{
-								Type: persesv1alpha2.SecretSourceTypeSecret,
-								Name: "my-secret",
+								Type:      persesv1alpha2.SecretSourceTypeSecret,
+								Name:      ptr.To("my-secret"),
+								Namespace: ptr.To("default"),
 							},
 							Username:     "admin",
 							PasswordPath: "password",
@@ -135,12 +139,13 @@ var _ = Describe("API Validation", func() {
 					Namespace: persesNamespace,
 				},
 				Spec: persesv1alpha2.PersesSpec{
-					ContainerPort: 8080,
+					ContainerPort: ptr.To(int32(8080)),
 					Client: &persesv1alpha2.Client{
 						OAuth: &persesv1alpha2.OAuth{
 							SecretSource: persesv1alpha2.SecretSource{
-								Type: persesv1alpha2.SecretSourceTypeSecret,
-								Name: "oauth-secret",
+								Type:      persesv1alpha2.SecretSourceTypeSecret,
+								Name:      ptr.To("oauth-secret"),
+								Namespace: ptr.To("default"),
 							},
 							TokenURL: "", // Invalid: required
 						},
@@ -162,12 +167,13 @@ var _ = Describe("API Validation", func() {
 					Namespace: persesNamespace,
 				},
 				Spec: persesv1alpha2.PersesSpec{
-					ContainerPort: 8080,
+					ContainerPort: ptr.To(int32(8080)),
 					Client: &persesv1alpha2.Client{
 						OAuth: &persesv1alpha2.OAuth{
 							SecretSource: persesv1alpha2.SecretSource{
-								Type: persesv1alpha2.SecretSourceTypeSecret,
-								Name: "oauth-secret",
+								Type:      persesv1alpha2.SecretSourceTypeSecret,
+								Name:      ptr.To("oauth-secret"),
+								Namespace: ptr.To("default"),
 							},
 							TokenURL: "https://auth.example.com/token",
 						},
@@ -197,14 +203,15 @@ var _ = Describe("API Validation", func() {
 					Namespace: persesNamespace,
 				},
 				Spec: persesv1alpha2.PersesSpec{
-					ContainerPort: 8080,
+					ContainerPort: ptr.To(int32(8080)),
 					Client: &persesv1alpha2.Client{
 						TLS: &persesv1alpha2.TLS{
-							Enable: true,
+							Enable: ptr.To(true),
 							CaCert: &persesv1alpha2.Certificate{
 								SecretSource: persesv1alpha2.SecretSource{
-									Type: persesv1alpha2.SecretSourceTypeSecret,
-									Name: "tls-secret",
+									Type:      persesv1alpha2.SecretSourceTypeSecret,
+									Name:      ptr.To("tls-secret"),
+									Namespace: ptr.To("default"),
 								},
 								CertPath: "", // Invalid: required
 							},
@@ -227,16 +234,85 @@ var _ = Describe("API Validation", func() {
 					Namespace: persesNamespace,
 				},
 				Spec: persesv1alpha2.PersesSpec{
-					ContainerPort: 8080,
+					ContainerPort: ptr.To(int32(8080)),
 					Client: &persesv1alpha2.Client{
 						TLS: &persesv1alpha2.TLS{
-							Enable: true,
+							Enable: ptr.To(true),
 							CaCert: &persesv1alpha2.Certificate{
 								SecretSource: persesv1alpha2.SecretSource{
-									Type: persesv1alpha2.SecretSourceTypeSecret,
-									Name: "tls-secret",
+									Type:      persesv1alpha2.SecretSourceTypeSecret,
+									Name:      ptr.To("tls-secret"),
+									Namespace: ptr.To("default"),
 								},
 								CertPath: "ca.crt",
+							},
+						},
+					},
+				},
+			}
+
+			By("Expecting the creation to succeed")
+			err := k8sClient.Create(ctx, perses)
+			Expect(err).To(Not(HaveOccurred()))
+
+			By("Cleaning up the created resource")
+			Eventually(func() error {
+				return k8sClient.Delete(ctx, perses)
+			}, time.Minute, time.Second).Should(Succeed())
+		})
+
+		It("should reject Certificate with type=secret but missing name (CEL validation)", func() {
+			By("Creating a Perses resource with Certificate type=secret but no name")
+			perses := &persesv1alpha2.Perses{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "invalid-cert-no-name",
+					Namespace: persesNamespace,
+				},
+				Spec: persesv1alpha2.PersesSpec{
+					ContainerPort: ptr.To(int32(8080)),
+					Client: &persesv1alpha2.Client{
+						TLS: &persesv1alpha2.TLS{
+							Enable: ptr.To(true),
+							UserCert: &persesv1alpha2.Certificate{
+								SecretSource: persesv1alpha2.SecretSource{
+									Type:      persesv1alpha2.SecretSourceTypeSecret,
+									Name:      nil, // Invalid: required when type is secret
+									Namespace: ptr.To("default"),
+								},
+								CertPath:       "tls.crt",
+								PrivateKeyPath: ptr.To("tls.key"),
+							},
+						},
+					},
+				},
+			}
+
+			By("Expecting the creation to fail with CEL validation error")
+			err := k8sClient.Create(ctx, perses)
+			Expect(err).To(HaveOccurred())
+			Expect(errors.IsInvalid(err)).To(BeTrue())
+			Expect(err.Error()).To(ContainSubstring("name is required when type is secret or configmap"))
+		})
+
+		It("should accept Certificate with type=file without name or namespace (CEL validation)", func() {
+			By("Creating a Perses resource with Certificate type=file")
+			perses := &persesv1alpha2.Perses{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "valid-cert-file",
+					Namespace: persesNamespace,
+				},
+				Spec: persesv1alpha2.PersesSpec{
+					ContainerPort: ptr.To(int32(8080)),
+					Client: &persesv1alpha2.Client{
+						TLS: &persesv1alpha2.TLS{
+							Enable: ptr.To(true),
+							CaCert: &persesv1alpha2.Certificate{
+								SecretSource: persesv1alpha2.SecretSource{
+									Type:      persesv1alpha2.SecretSourceTypeFile,
+									Name:      nil, // Valid: not required when type is file
+									Namespace: nil, // Valid: not required when type is file
+								},
+								CertPath: "/etc/ssl/certs/ca.crt",
 							},
 						},
 					},
@@ -265,12 +341,12 @@ var _ = Describe("API Validation", func() {
 					Namespace: persesNamespace,
 				},
 				Spec: persesv1alpha2.PersesSpec{
-					ContainerPort: 8080,
+					ContainerPort: ptr.To(int32(8080)),
 					Client: &persesv1alpha2.Client{
 						BasicAuth: &persesv1alpha2.BasicAuth{
 							SecretSource: persesv1alpha2.SecretSource{
 								Type: "invalid-type", // Invalid: must be secret, configmap, or file
-								Name: "my-secret",
+								Name: ptr.To("my-secret"),
 							},
 							Username:     "admin",
 							PasswordPath: "password",
@@ -283,6 +359,369 @@ var _ = Describe("API Validation", func() {
 			err := k8sClient.Create(ctx, perses)
 			Expect(err).To(HaveOccurred())
 			Expect(errors.IsInvalid(err)).To(BeTrue())
+		})
+
+		It("should reject SecretSource with type=secret but missing name (CEL validation)", func() {
+			By("Creating a Perses resource with type=secret but no name")
+			perses := &persesv1alpha2.Perses{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "invalid-secret-no-name",
+					Namespace: persesNamespace,
+				},
+				Spec: persesv1alpha2.PersesSpec{
+					ContainerPort: ptr.To(int32(8080)),
+					Client: &persesv1alpha2.Client{
+						BasicAuth: &persesv1alpha2.BasicAuth{
+							SecretSource: persesv1alpha2.SecretSource{
+								Type:      persesv1alpha2.SecretSourceTypeSecret,
+								Name:      nil, // Invalid: required when type is secret
+								Namespace: ptr.To("default"),
+							},
+							Username:     "admin",
+							PasswordPath: "password",
+						},
+					},
+				},
+			}
+
+			By("Expecting the creation to fail with CEL validation error")
+			err := k8sClient.Create(ctx, perses)
+			Expect(err).To(HaveOccurred())
+			Expect(errors.IsInvalid(err)).To(BeTrue())
+			Expect(err.Error()).To(ContainSubstring("name is required when type is secret or configmap"))
+		})
+
+		It("should reject SecretSource with type=secret but missing namespace (CEL validation)", func() {
+			By("Creating a Perses resource with type=secret but no namespace")
+			perses := &persesv1alpha2.Perses{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "invalid-secret-no-namespace",
+					Namespace: persesNamespace,
+				},
+				Spec: persesv1alpha2.PersesSpec{
+					ContainerPort: ptr.To(int32(8080)),
+					Client: &persesv1alpha2.Client{
+						BasicAuth: &persesv1alpha2.BasicAuth{
+							SecretSource: persesv1alpha2.SecretSource{
+								Type:      persesv1alpha2.SecretSourceTypeSecret,
+								Name:      ptr.To("my-secret"),
+								Namespace: nil, // Invalid: required when type is secret
+							},
+							Username:     "admin",
+							PasswordPath: "password",
+						},
+					},
+				},
+			}
+
+			By("Expecting the creation to fail with CEL validation error")
+			err := k8sClient.Create(ctx, perses)
+			Expect(err).To(HaveOccurred())
+			Expect(errors.IsInvalid(err)).To(BeTrue())
+			Expect(err.Error()).To(ContainSubstring("namespace is required when type is secret or configmap"))
+		})
+
+		It("should reject SecretSource with type=configmap but missing name (CEL validation)", func() {
+			By("Creating a Perses resource with type=configmap but no name")
+			perses := &persesv1alpha2.Perses{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "invalid-configmap-no-name",
+					Namespace: persesNamespace,
+				},
+				Spec: persesv1alpha2.PersesSpec{
+					ContainerPort: ptr.To(int32(8080)),
+					Client: &persesv1alpha2.Client{
+						OAuth: &persesv1alpha2.OAuth{
+							SecretSource: persesv1alpha2.SecretSource{
+								Type:      persesv1alpha2.SecretSourceTypeConfigMap,
+								Name:      nil, // Invalid: required when type is configmap
+								Namespace: ptr.To("default"),
+							},
+							TokenURL: "https://auth.example.com/token",
+						},
+					},
+				},
+			}
+
+			By("Expecting the creation to fail with CEL validation error")
+			err := k8sClient.Create(ctx, perses)
+			Expect(err).To(HaveOccurred())
+			Expect(errors.IsInvalid(err)).To(BeTrue())
+			Expect(err.Error()).To(ContainSubstring("name is required when type is secret or configmap"))
+		})
+
+		It("should reject SecretSource with type=configmap but missing namespace (CEL validation)", func() {
+			By("Creating a Perses resource with type=configmap but no namespace")
+			perses := &persesv1alpha2.Perses{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "invalid-configmap-no-namespace",
+					Namespace: persesNamespace,
+				},
+				Spec: persesv1alpha2.PersesSpec{
+					ContainerPort: ptr.To(int32(8080)),
+					Client: &persesv1alpha2.Client{
+						OAuth: &persesv1alpha2.OAuth{
+							SecretSource: persesv1alpha2.SecretSource{
+								Type:      persesv1alpha2.SecretSourceTypeConfigMap,
+								Name:      ptr.To("oauth-config"),
+								Namespace: nil, // Invalid: required when type is configmap
+							},
+							TokenURL: "https://auth.example.com/token",
+						},
+					},
+				},
+			}
+
+			By("Expecting the creation to fail with CEL validation error")
+			err := k8sClient.Create(ctx, perses)
+			Expect(err).To(HaveOccurred())
+			Expect(errors.IsInvalid(err)).To(BeTrue())
+			Expect(err.Error()).To(ContainSubstring("namespace is required when type is secret or configmap"))
+		})
+
+		It("should accept SecretSource with type=file without name or namespace (CEL validation)", func() {
+			By("Creating a Perses resource with type=file and no name/namespace")
+			perses := &persesv1alpha2.Perses{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "valid-file-source",
+					Namespace: persesNamespace,
+				},
+				Spec: persesv1alpha2.PersesSpec{
+					ContainerPort: ptr.To(int32(8080)),
+					Client: &persesv1alpha2.Client{
+						BasicAuth: &persesv1alpha2.BasicAuth{
+							SecretSource: persesv1alpha2.SecretSource{
+								Type:      persesv1alpha2.SecretSourceTypeFile,
+								Name:      nil, // Valid: not required when type is file
+								Namespace: nil, // Valid: not required when type is file
+							},
+							Username:     "admin",
+							PasswordPath: "/var/secrets/password",
+						},
+					},
+				},
+			}
+
+			By("Expecting the creation to succeed")
+			err := k8sClient.Create(ctx, perses)
+			Expect(err).To(Not(HaveOccurred()))
+
+			By("Cleaning up the created resource")
+			Eventually(func() error {
+				return k8sClient.Delete(ctx, perses)
+			}, time.Minute, time.Second).Should(Succeed())
+		})
+
+		It("should accept SecretSource with type=secret and both name and namespace provided (CEL validation)", func() {
+			By("Creating a Perses resource with type=secret and valid name/namespace")
+			perses := &persesv1alpha2.Perses{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "valid-secret-source",
+					Namespace: persesNamespace,
+				},
+				Spec: persesv1alpha2.PersesSpec{
+					ContainerPort: ptr.To(int32(8080)),
+					Client: &persesv1alpha2.Client{
+						BasicAuth: &persesv1alpha2.BasicAuth{
+							SecretSource: persesv1alpha2.SecretSource{
+								Type:      persesv1alpha2.SecretSourceTypeSecret,
+								Name:      ptr.To("my-secret"),
+								Namespace: ptr.To("default"),
+							},
+							Username:     "admin",
+							PasswordPath: "password",
+						},
+					},
+				},
+			}
+
+			By("Expecting the creation to succeed")
+			err := k8sClient.Create(ctx, perses)
+			Expect(err).To(Not(HaveOccurred()))
+
+			By("Cleaning up the created resource")
+			Eventually(func() error {
+				return k8sClient.Delete(ctx, perses)
+			}, time.Minute, time.Second).Should(Succeed())
+		})
+
+		It("should accept SecretSource with type=configmap and both name and namespace provided (CEL validation)", func() {
+			By("Creating a Perses resource with type=configmap and valid name/namespace")
+			perses := &persesv1alpha2.Perses{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "valid-configmap-source",
+					Namespace: persesNamespace,
+				},
+				Spec: persesv1alpha2.PersesSpec{
+					ContainerPort: ptr.To(int32(8080)),
+					Client: &persesv1alpha2.Client{
+						OAuth: &persesv1alpha2.OAuth{
+							SecretSource: persesv1alpha2.SecretSource{
+								Type:      persesv1alpha2.SecretSourceTypeConfigMap,
+								Name:      ptr.To("oauth-config"),
+								Namespace: ptr.To("default"),
+							},
+							TokenURL: "https://auth.example.com/token",
+						},
+					},
+				},
+			}
+
+			By("Expecting the creation to succeed")
+			err := k8sClient.Create(ctx, perses)
+			Expect(err).To(Not(HaveOccurred()))
+
+			By("Cleaning up the created resource")
+			Eventually(func() error {
+				return k8sClient.Delete(ctx, perses)
+			}, time.Minute, time.Second).Should(Succeed())
+		})
+
+		It("should reject SecretSource with type=secret and empty name string (MinLength validation)", func() {
+			By("Creating a Perses resource with type=secret and empty name string")
+			perses := &persesv1alpha2.Perses{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "invalid-secret-empty-name",
+					Namespace: persesNamespace,
+				},
+				Spec: persesv1alpha2.PersesSpec{
+					ContainerPort: ptr.To(int32(8080)),
+					Client: &persesv1alpha2.Client{
+						BasicAuth: &persesv1alpha2.BasicAuth{
+							SecretSource: persesv1alpha2.SecretSource{
+								Type:      persesv1alpha2.SecretSourceTypeSecret,
+								Name:      ptr.To(""), // Invalid: MinLength=1
+								Namespace: ptr.To("default"),
+							},
+							Username:     "admin",
+							PasswordPath: "password",
+						},
+					},
+				},
+			}
+
+			By("Expecting the creation to fail with MinLength validation error")
+			err := k8sClient.Create(ctx, perses)
+			Expect(err).To(HaveOccurred())
+			Expect(errors.IsInvalid(err)).To(BeTrue())
+		})
+
+		It("should reject SecretSource with type=secret and empty namespace string (MinLength validation)", func() {
+			By("Creating a Perses resource with type=secret and empty namespace string")
+			perses := &persesv1alpha2.Perses{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "invalid-secret-empty-namespace",
+					Namespace: persesNamespace,
+				},
+				Spec: persesv1alpha2.PersesSpec{
+					ContainerPort: ptr.To(int32(8080)),
+					Client: &persesv1alpha2.Client{
+						BasicAuth: &persesv1alpha2.BasicAuth{
+							SecretSource: persesv1alpha2.SecretSource{
+								Type:      persesv1alpha2.SecretSourceTypeSecret,
+								Name:      ptr.To("my-secret"),
+								Namespace: ptr.To(""), // Invalid: MinLength=1
+							},
+							Username:     "admin",
+							PasswordPath: "password",
+						},
+					},
+				},
+			}
+
+			By("Expecting the creation to fail with MinLength validation error")
+			err := k8sClient.Create(ctx, perses)
+			Expect(err).To(HaveOccurred())
+			Expect(errors.IsInvalid(err)).To(BeTrue())
+		})
+
+		It("should reject SecretSource with type=configmap and empty name string (MinLength validation)", func() {
+			By("Creating a Perses resource with type=configmap and empty name string")
+			perses := &persesv1alpha2.Perses{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "invalid-configmap-empty-name",
+					Namespace: persesNamespace,
+				},
+				Spec: persesv1alpha2.PersesSpec{
+					ContainerPort: ptr.To(int32(8080)),
+					Client: &persesv1alpha2.Client{
+						OAuth: &persesv1alpha2.OAuth{
+							SecretSource: persesv1alpha2.SecretSource{
+								Type:      persesv1alpha2.SecretSourceTypeConfigMap,
+								Name:      ptr.To(""), // Invalid: MinLength=1
+								Namespace: ptr.To("default"),
+							},
+							TokenURL: "https://auth.example.com/token",
+						},
+					},
+				},
+			}
+
+			By("Expecting the creation to fail with MinLength validation error")
+			err := k8sClient.Create(ctx, perses)
+			Expect(err).To(HaveOccurred())
+			Expect(errors.IsInvalid(err)).To(BeTrue())
+		})
+
+		It("should reject SecretSource with type=configmap and empty namespace string (MinLength validation)", func() {
+			By("Creating a Perses resource with type=configmap and empty namespace string")
+			perses := &persesv1alpha2.Perses{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "invalid-configmap-empty-namespace",
+					Namespace: persesNamespace,
+				},
+				Spec: persesv1alpha2.PersesSpec{
+					ContainerPort: ptr.To(int32(8080)),
+					Client: &persesv1alpha2.Client{
+						OAuth: &persesv1alpha2.OAuth{
+							SecretSource: persesv1alpha2.SecretSource{
+								Type:      persesv1alpha2.SecretSourceTypeConfigMap,
+								Name:      ptr.To("oauth-config"),
+								Namespace: ptr.To(""), // Invalid: MinLength=1
+							},
+							TokenURL: "https://auth.example.com/token",
+						},
+					},
+				},
+			}
+
+			By("Expecting the creation to fail with MinLength validation error")
+			err := k8sClient.Create(ctx, perses)
+			Expect(err).To(HaveOccurred())
+			Expect(errors.IsInvalid(err)).To(BeTrue())
+		})
+
+		It("should accept SecretSource with type=file even with name and namespace provided (CEL validation)", func() {
+			By("Creating a Perses resource with type=file and name/namespace (optional and ignored)")
+			perses := &persesv1alpha2.Perses{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "valid-file-with-optional-fields",
+					Namespace: persesNamespace,
+				},
+				Spec: persesv1alpha2.PersesSpec{
+					ContainerPort: ptr.To(int32(8080)),
+					Client: &persesv1alpha2.Client{
+						BasicAuth: &persesv1alpha2.BasicAuth{
+							SecretSource: persesv1alpha2.SecretSource{
+								Type:      persesv1alpha2.SecretSourceTypeFile,
+								Name:      ptr.To("ignored-name"),      // Optional: ignored when type is file
+								Namespace: ptr.To("ignored-namespace"), // Optional: ignored when type is file
+							},
+							Username:     "admin",
+							PasswordPath: "/var/secrets/password",
+						},
+					},
+				},
+			}
+
+			By("Expecting the creation to succeed")
+			err := k8sClient.Create(ctx, perses)
+			Expect(err).To(Not(HaveOccurred()))
+
+			By("Cleaning up the created resource")
+			Eventually(func() error {
+				return k8sClient.Delete(ctx, perses)
+			}, time.Minute, time.Second).Should(Succeed())
 		})
 	})
 
@@ -297,7 +736,7 @@ var _ = Describe("API Validation", func() {
 					Namespace: persesNamespace,
 				},
 				Spec: persesv1alpha2.PersesSpec{
-					ContainerPort: 65536, // Invalid: maximum is 65535
+					ContainerPort: ptr.To(int32(65536)), // Invalid: maximum is 65535
 				},
 			}
 
@@ -315,7 +754,7 @@ var _ = Describe("API Validation", func() {
 					Namespace: persesNamespace,
 				},
 				Spec: persesv1alpha2.PersesSpec{
-					ContainerPort: 8500,
+					ContainerPort: ptr.To(int32(8500)),
 				},
 			}
 
@@ -342,7 +781,7 @@ var _ = Describe("API Validation", func() {
 					Namespace: persesNamespace,
 				},
 				Spec: persesv1alpha2.PersesSpec{
-					ContainerPort: 8080,
+					ContainerPort: ptr.To(int32(8080)),
 					LogLevel:      &invalidLogLevel,
 				},
 			}
@@ -362,7 +801,7 @@ var _ = Describe("API Validation", func() {
 					Namespace: persesNamespace,
 				},
 				Spec: persesv1alpha2.PersesSpec{
-					ContainerPort: 8080,
+					ContainerPort: ptr.To(int32(8080)),
 					LogLevel:      &debugLogLevel,
 				},
 			}
@@ -390,7 +829,7 @@ var _ = Describe("API Validation", func() {
 					Namespace: persesNamespace,
 				},
 				Spec: persesv1alpha2.PersesSpec{
-					ContainerPort:  8080,
+					ContainerPort:  ptr.To(int32(8080)),
 					LogMethodTrace: &logMethodTrace,
 				},
 			}

@@ -32,22 +32,27 @@ func GetVolumes(perses *v1alpha2.Perses) []corev1.Volume {
 		},
 	}
 
+	// Add storage volume only for file-based database
+	// SQL database doesn't need storage volumes (uses external database)
 	if perses.Spec.Config.Database.File != nil {
-		volumes = append(volumes, corev1.Volume{
-			Name: StorageVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: GetStorageName(perses.Name),
+		if perses.Spec.Storage != nil && perses.Spec.Storage.EmptyDir != nil {
+			volumes = append(volumes, corev1.Volume{
+				Name: StorageVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: perses.Spec.Storage.EmptyDir,
 				},
-			},
-		})
-	} else {
-		volumes = append(volumes, corev1.Volume{
-			Name: StorageVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
-			},
-		})
+			})
+		} else {
+			// File database without explicit emptyDir = use PVC (handled by StatefulSet)
+			volumes = append(volumes, corev1.Volume{
+				Name: StorageVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: GetStorageName(perses.Name),
+					},
+				},
+			})
+		}
 	}
 
 	// Add TLS volumes if enabled
@@ -96,17 +101,25 @@ func createCertVolume(name string, cert v1alpha2.Certificate) corev1.Volume {
 
 	switch cert.Type {
 	case v1alpha2.SecretSourceTypeSecret:
+		secretName := ""
+		if cert.Name != nil {
+			secretName = *cert.Name
+		}
 		volume.VolumeSource = corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
-				SecretName:  cert.Name,
+				SecretName:  secretName,
 				DefaultMode: ptr.To[int32](defaultFileMode),
 			},
 		}
 	case v1alpha2.SecretSourceTypeConfigMap:
+		cmName := ""
+		if cert.Name != nil {
+			cmName = *cert.Name
+		}
 		volume.VolumeSource = corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{
-					Name: cert.Name,
+					Name: cmName,
 				},
 				DefaultMode: ptr.To[int32](defaultFileMode),
 			},
@@ -124,11 +137,15 @@ func GetVolumeMounts(perses *v1alpha2.Perses) []corev1.VolumeMount {
 			ReadOnly:  true,
 			MountPath: configMountPath,
 		},
-		{
+	}
+
+	// Add storage volume mount only for file-based database
+	if perses.Spec.Config.Database.File != nil {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      StorageVolumeName,
 			ReadOnly:  false,
 			MountPath: storageMountPath,
-		},
+		})
 	}
 
 	// Add TLS volume mounts if enabled
