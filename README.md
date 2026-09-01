@@ -4,37 +4,37 @@
 
 # Perses Operator
 
-[![ci](https://github.com/perses/perses-operator/actions/workflows/ci.yaml/badge.svg)](https://github.com/perses/perses-operator/actions/workflows/ci.yaml)
-[![go](https://github.com/perses/perses-operator/actions/workflows/go.yaml/badge.svg)](https://github.com/perses/perses-operator/actions/workflows/go.yaml)
-[![e2e](https://github.com/perses/perses-operator/actions/workflows/e2e.yaml/badge.svg)](https://github.com/perses/perses-operator/actions/workflows/e2e.yaml)
-[![docs](https://github.com/perses/perses-operator/actions/workflows/docs.yaml/badge.svg)](https://github.com/perses/perses-operator/actions/workflows/docs.yaml)
+[![ci](https://github.com/rhobs/perses-operator/actions/workflows/ci.yaml/badge.svg)](https://github.com/rhobs/perses-operator/actions/workflows/ci.yaml)
+[![go](https://github.com/rhobs/perses-operator/actions/workflows/go.yaml/badge.svg)](https://github.com/rhobs/perses-operator/actions/workflows/go.yaml)
+[![e2e](https://github.com/rhobs/perses-operator/actions/workflows/e2e.yaml/badge.svg)](https://github.com/rhobs/perses-operator/actions/workflows/e2e.yaml)
+[![docs](https://github.com/rhobs/perses-operator/actions/workflows/docs.yaml/badge.svg)](https://github.com/rhobs/perses-operator/actions/workflows/docs.yaml)
 [![persesdev/perses-operator](https://img.shields.io/docker/v/persesdev/perses-operator?sort=semver&label=persesdev%2Fperses-operator)](https://hub.docker.com/r/persesdev/perses-operator/tags)
 [![join slack](https://img.shields.io/badge/join%20slack-%23perses--dev-brightgreen.svg)](https://cloud-native.slack.com/messages/C07KQR95WBE)
 
 ## Overview
 
 The Perses Operator provides [Kubernetes](https://kubernetes.io/) native deployment and management of
-[Perses](https://github.com/perses/perses) and related resources. The purpose of this project is to
+[Perses](https://github.com/rhobs/perses) and related resources. The purpose of this project is to
 simplify and automate the deployment and management of Perses observability dashboards on Kubernetes clusters.
 
 The Perses Operator includes, but is not limited to, the following features:
 
-* **Kubernetes Custom Resources**: Use Kubernetes custom resources to deploy and manage Perses instances,
+- **Kubernetes Custom Resources**: Use Kubernetes custom resources to deploy and manage Perses instances,
   dashboards, and datasources.
 
-* **Dashboard-as-Code**: Declaratively manage dashboards and datasources as Kubernetes resources,
+- **Dashboard-as-Code**: Declaratively manage dashboards and datasources as Kubernetes resources,
   with automatic synchronization to Perses instances.
 
-* **Flexible Storage**: Configure SQL database (Deployment) or file-based storage with PVC (StatefulSet)
+- **Flexible Storage**: Configure SQL database (Deployment) or file-based storage with PVC (StatefulSet)
   or emptyDir from a native Kubernetes resource.
 
-* **TLS and Authentication**: Configure server TLS, client mTLS, and datasource proxy TLS.
+- **TLS and Authentication**: Configure server TLS, client mTLS, and datasource proxy TLS.
   Support for BasicAuth, OAuth, and native Kubernetes authentication.
 
-* **Multi-Instance Sync**: Use `instanceSelector` on dashboards and datasources to target specific
+- **Multi-Instance Sync**: Use `instanceSelector` on dashboards and datasources to target specific
   Perses instances, with namespace-to-project mapping for isolation.
 
-* **Observability**: Built-in Prometheus metrics and alerting rules compatible with
+- **Observability**: Built-in Prometheus metrics and alerting rules compatible with
   [Prometheus Operator](https://github.com/prometheus-operator/prometheus-operator).
 
 For an introduction to the Perses Operator, see the [getting started](#getting-started) guide. For detailed usage documentation, see the [user guide](https://perses.dev/perses-operator/docs/user-guide/) and the [API Reference](https://perses.dev/perses-operator/docs/api/).
@@ -43,7 +43,7 @@ For an introduction to the Perses Operator, see the [getting started](#getting-s
 
 The operator is under active development. Please refer to the Custom Resource Definition (CRD) version for the current API status:
 
-* `perses.dev/v1alpha2`: **unstable** CRDs and API, changes can happen frequently. We encourage usage
+- `perses.dev/v1alpha2`: **unstable** CRDs and API, changes can happen frequently. We encourage usage
   for testing and development, but suggest caution in mission-critical environments.
 
 ## Custom Resource Definitions (CRDs)
@@ -52,16 +52,16 @@ A core feature of the Perses Operator is to watch the Kubernetes API server for 
 to specific objects and ensure that the desired Perses deployments and configurations match.
 The Operator acts on the following [Custom Resource Definitions (CRDs)](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-custom-resource-definitions/):
 
-* **`Perses`**, which defines a desired Perses server deployment. The operator manages the underlying
+- **`Perses`**, which defines a desired Perses server deployment. The operator manages the underlying
   Deployment or StatefulSet, Service, and ConfigMap based on the spec.
 
-* **`PersesDashboard`**, which declaratively specifies a dashboard to be synced to Perses instances.
+- **`PersesDashboard`**, which declaratively specifies a dashboard to be synced to Perses instances.
   Kubernetes namespaces map to Perses projects.
 
-* **`PersesDatasource`**, which declaratively specifies a project-scoped datasource to be synced
+- **`PersesDatasource`**, which declaratively specifies a project-scoped datasource to be synced
   to matching Perses instances. The datasource's namespace maps to a Perses project.
 
-* **`PersesGlobalDatasource`**, which declaratively specifies a cluster-scoped datasource shared
+- **`PersesGlobalDatasource`**, which declaratively specifies a cluster-scoped datasource shared
   across all Perses projects.
 
 The Perses Operator automatically detects changes in the Kubernetes API server to any of the above

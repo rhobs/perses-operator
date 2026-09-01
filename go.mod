@@ -1,4 +1,4 @@
-module github.com/perses/perses-operator
+module github.com/rhobs/perses-operator
 
 go 1.26.5
 
@@ -10,8 +10,8 @@ require (
 	github.com/openshift/controller-runtime-common v0.0.0-20260428152732-64ee174f5e2e
 	github.com/openshift/library-go v0.0.0-20260615113748-bc9d4056464b
 	github.com/perses/common v0.31.2
-	github.com/perses/perses v0.54.0
 	github.com/prometheus/client_golang v1.24.1
+	github.com/rhobs/perses v0.0.0-20260811130003-9a44728c66c0
 	github.com/sirupsen/logrus v1.10.2
 	github.com/stretchr/testify v1.12.1
 	gopkg.in/yaml.v2 v2.4.0

@@ -80,14 +80,14 @@ spec:
       privateKeyPath: tls.key
 
   replicas: 1
-  
+
   # Optional resource limits and requests
   resources:
     limits:
       memory: 500Mi
     requests:
       memory:
-      
+
   containerPort: 8080
 
   # Optional log level for Perses server
@@ -564,4 +564,4 @@ If you need time to label all secrets, you can temporarily restore the previous 
    - Check that the dashboard is created in the correct namespace
    - Verify that referenced datasources exist and are accessible
 
-For more detailed information or support, please visit the [Perses GitHub repository](https://github.com/perses/perses).
+For more detailed information or support, please visit the [Perses GitHub repository](https://github.com/rhobs/perses).
