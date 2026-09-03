@@ -1,0 +1,62 @@
+name: e2e
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - release/*
+      - release-*
+      - snapshot/*
+  merge_group:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.ref_name != 'main' }}
+
+jobs:
+  changed-files:
+    uses: ./.github/workflows/changed-files.yaml
+  e2e:
+    needs: changed-files
+    if: ${{ needs.changed-files.outputs.e2e == 'true' }}
+    name: "kuttl e2e tests"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Import environment variables
+        run: cat .github/env >> "$GITHUB_ENV"
+      - uses: perses/github-actions@a7d024e4d064be61d47b59bafd514d1465fb2e4d # v0.12.0
+      - uses: ./.github/perses-ci/actions/setup_environment
+        with:
+          enable_go: true
+      - name: Install all tools
+        uses: ./.github/tools-cache
+      - name: Create kind cluster
+        uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1.14.0
+        with:
+          version: ${{ env.kind-version }}
+          cluster_name: kuttl-e2e
+          node_image: ${{ env.kind-image }}
+          wait: 5m
+      - name: Deploy operator
+        run: make e2e-deploy
+      - name: Run e2e tests
+        run: make test-e2e
+      - name: Collect debug info on failure
+        if: failure()
+        run: |
+          echo "=== Operator logs ==="
+          kubectl logs -n perses-operator-system deployment/perses-operator-controller-manager --tail=200 || true
+          echo ""
+          echo "=== Events ==="
+          kubectl get events -A --sort-by='.lastTimestamp' | tail -50 || true
+          echo ""
+          echo "=== Perses resources ==="
+          kubectl get perses,persesdashboard,persesdatasource,persesglobaldatasource -A -o wide || true
+          echo ""
+          echo "=== Pods ==="
+          kubectl get pods -A || true
