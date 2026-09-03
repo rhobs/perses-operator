@@ -1,0 +1,134 @@
+name: go
+on:
+  push:
+    branches:
+      - main
+      - release/*
+      - release-*
+      - snapshot/*
+    tags:
+      - v*
+  pull_request:
+  merge_group:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.ref_name != 'main' }}
+
+jobs:
+  changed-files:
+    uses: ./.github/workflows/changed-files.yaml
+  gofmt:
+    needs: changed-files
+    if: ${{ needs.changed-files.outputs.go == 'true' || needs.changed-files.outputs.shell == 'true' }}
+    name: "check code format"
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: perses/github-actions@a7d024e4d064be61d47b59bafd514d1465fb2e4d # v0.12.0
+      - uses: ./.github/perses-ci/actions/setup_environment
+        with:
+          enable_go: true
+      - name: Install all tools
+        uses: ./.github/tools-cache
+      - name: check format
+        run: make checkformat || (echo "Please run 'make format' locally and commit the changes." && exit 1)
+      - name: verify go modules
+        run: make tidy
+  test-unit:
+    needs: changed-files
+    if: ${{ needs.changed-files.outputs.go == 'true' }}
+    name: "unit tests"
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: perses/github-actions@a7d024e4d064be61d47b59bafd514d1465fb2e4d # v0.12.0
+      - uses: ./.github/perses-ci/actions/setup_environment
+        with:
+          enable_go: true
+      - name: Install all tools
+        uses: ./.github/tools-cache
+      - name: unit tests
+        run: make test-unit
+  test-integration:
+    needs: changed-files
+    if: ${{ needs.changed-files.outputs.go == 'true' || needs.changed-files.outputs.manifests == 'true' }}
+    name: "integration tests"
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: perses/github-actions@a7d024e4d064be61d47b59bafd514d1465fb2e4d # v0.12.0
+      - uses: ./.github/perses-ci/actions/setup_environment
+        with:
+          enable_go: true
+      - name: Install all tools
+        uses: ./.github/tools-cache
+      - name: integration tests
+        run: make test-integration
+  lint-api:
+    needs: changed-files
+    if: ${{ needs.changed-files.outputs.api == 'true' }}
+    name: "kube-api-linter"
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: perses/github-actions@a7d024e4d064be61d47b59bafd514d1465fb2e4d # v0.12.0
+      - uses: ./.github/perses-ci/actions/setup_environment
+        with:
+          enable_go: true
+      - name: Install all tools
+        uses: ./.github/tools-cache
+      - name: lint API types
+        run: make lint-api
+  lint:
+    needs: changed-files
+    if: ${{ needs.changed-files.outputs.go == 'true' || needs.changed-files.outputs.manifests == 'true' || needs.changed-files.outputs.jsonnet == 'true' || needs.changed-files.outputs.shell == 'true' }}
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: perses/github-actions@a7d024e4d064be61d47b59bafd514d1465fb2e4d # v0.12.0
+      - uses: ./.github/perses-ci/actions/setup_environment
+        with:
+          enable_go: true
+          enable_go_cache: false
+          enable_npm: false
+      - name: Install all tools
+        uses: ./.github/tools-cache
+      - name: generate files
+        run: make generate
+      - name: check bundle changes
+        run: make bundle-check
+      - name: check jsonnet changes
+        run: make jsonnet-check
+      - name: test alerting rules
+        run: make test-alerts
+      - name: check installer manifest is up-to-date
+        run: make installer-check
+      - name: check generated manifests are up-to-date
+        run: git diff --exit-code config/
+      - name: golangci-lint
+        run: make lint-golang
+      - name: lint jsonnet
+        run: make lint-jsonnet
+      - name: lint shell
+        run: make lint-shell
+  checklicense:
+    name: "check license headers"
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: perses/github-actions@a7d024e4d064be61d47b59bafd514d1465fb2e4d # v0.12.0
+      - uses: ./.github/perses-ci/actions/setup_environment
+        with:
+          enable_go: true
+      - name: Install all tools
+        uses: ./.github/tools-cache
+      - name: check license headers
+        run: make checklicense
