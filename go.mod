@@ -13,6 +13,7 @@ require (
 	github.com/perses/spec v0.3.0-rc.1
 	github.com/prometheus/client_golang v1.24.1
 	github.com/rhobs/perses v0.0.0-20261014180603-9f3f7bdb8409
+	github.com/rhobs/perses-spec v0.0.0-20261020104126-c7666210297f
 	github.com/sirupsen/logrus v1.10.2
 	github.com/stretchr/testify v1.12.1
 	gopkg.in/yaml.v2 v2.4.0
