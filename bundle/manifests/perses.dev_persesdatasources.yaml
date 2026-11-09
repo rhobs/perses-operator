@@ -3,10 +3,20 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     cert-manager.io/inject-ca-from: perses-operator-system/perses-operator-serving-cert
-    controller-gen.kubebuilder.io/version: v0.22.0
+    controller-gen.kubebuilder.io/version: v0.23.0
   creationTimestamp: null
   name: persesdatasources.perses.dev
 spec:
+  conversion:
+    strategy: Webhook
+    webhook:
+      clientConfig:
+        service:
+          name: perses-operator-webhook-service
+          namespace: perses-operator-system
+          path: /convert
+      conversionReviewVersions:
+      - v1
   group: perses.dev
   names:
     kind: PersesDatasource

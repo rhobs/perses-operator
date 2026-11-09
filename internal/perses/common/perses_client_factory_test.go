@@ -15,11 +15,23 @@ package common
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"flag"
+	"math/big"
+	"net/http"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/rhobs/perses/pkg/client/perseshttp"
+	"github.com/rhobs/perses/pkg/model/api/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -93,14 +105,14 @@ func TestConfigFingerprint(t *testing.T) {
 func TestForgetInstance(t *testing.T) {
 	factory := NewWithConfig()
 
-	// Manually populate cache
-	factory.cache["default/perses-1"] = clientCacheEntry{
-		client:      nil,
-		fingerprint: "test-fp",
+	factory.cache["default/perses-1"] = map[string]clientCacheEntry{
+		"":         {fingerprint: "test-fp"},
+		"10.0.0.1": {fingerprint: "test-fp"},
+		"10.0.0.2": {fingerprint: "test-fp"},
 	}
-	factory.cache["prod/perses-2"] = clientCacheEntry{
-		client:      nil,
-		fingerprint: "test-fp-2",
+	factory.cache["prod/perses-2"] = map[string]clientCacheEntry{
+		"":         {fingerprint: "test-fp-2"},
+		"10.0.1.1": {fingerprint: "test-fp-2"},
 	}
 
 	assert.Len(t, factory.cache, 2)
@@ -112,7 +124,10 @@ func TestForgetInstance(t *testing.T) {
 	assert.False(t, exists, "Entry should be removed")
 
 	_, exists = factory.cache["prod/perses-2"]
-	assert.True(t, exists, "Other entry should remain")
+	assert.True(t, exists, "Other instance should remain")
+
+	factory.ForgetInstance("prod/perses")
+	assert.Len(t, factory.cache, 1)
 
 	// Forgetting a non-existent key should not panic
 	factory.ForgetInstance("nonexistent/key")
@@ -123,24 +138,26 @@ func TestCacheHitTTLExpiry(t *testing.T) {
 	factory := NewWithConfig()
 	factory.ttl = 100 * time.Millisecond
 
-	factory.cache["default/perses-1"] = clientCacheEntry{
-		client:      nil,
-		fingerprint: "fp-1",
-		createdAt:   time.Now(),
+	factory.cache["default/perses-1"] = map[string]clientCacheEntry{
+		"": {
+			client:      nil,
+			fingerprint: "fp-1",
+			createdAt:   time.Now(),
+		},
 	}
 
 	// Fresh entry should be a hit
-	cached, ok := factory.cacheHit("default/perses-1", "fp-1")
+	cached, ok := factory.cacheHit("default/perses-1", "", "fp-1")
 	assert.True(t, ok, "Fresh entry should be a cache hit")
 	assert.Nil(t, cached)
 
 	// Wrong fingerprint should miss
-	_, ok = factory.cacheHit("default/perses-1", "fp-different")
+	_, ok = factory.cacheHit("default/perses-1", "", "fp-different")
 	assert.False(t, ok, "Wrong fingerprint should be a cache miss")
 
 	// Wait for TTL to expire
 	time.Sleep(150 * time.Millisecond)
-	_, ok = factory.cacheHit("default/perses-1", "fp-1")
+	_, ok = factory.cacheHit("default/perses-1", "", "fp-1")
 	assert.False(t, ok, "Expired entry should be a cache miss")
 }
 
@@ -148,15 +165,19 @@ func TestSweepExpiredEntries(t *testing.T) {
 	factory := NewWithConfig()
 	factory.ttl = 50 * time.Millisecond
 
-	factory.cache["default/perses-1"] = clientCacheEntry{
-		client:      nil,
-		fingerprint: "fp-1",
-		createdAt:   time.Now(),
+	factory.cache["default/perses-1"] = map[string]clientCacheEntry{
+		"": {
+			client:      nil,
+			fingerprint: "fp-1",
+			createdAt:   time.Now(),
+		},
 	}
-	factory.cache["default/perses-2"] = clientCacheEntry{
-		client:      nil,
-		fingerprint: "fp-2",
-		createdAt:   time.Now(),
+	factory.cache["default/perses-2"] = map[string]clientCacheEntry{
+		"": {
+			client:      nil,
+			fingerprint: "fp-2",
+			createdAt:   time.Now(),
+		},
 	}
 
 	assert.Len(t, factory.cache, 2)
@@ -165,10 +186,12 @@ func TestSweepExpiredEntries(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Add a fresh entry that should survive the sweep
-	factory.cache["default/perses-3"] = clientCacheEntry{
-		client:      nil,
-		fingerprint: "fp-3",
-		createdAt:   time.Now(),
+	factory.cache["default/perses-3"] = map[string]clientCacheEntry{
+		"": {
+			client:      nil,
+			fingerprint: "fp-3",
+			createdAt:   time.Now(),
+		},
 	}
 
 	factory.mtx.Lock()
@@ -186,10 +209,12 @@ func TestSweepSkipsBeforeInterval(t *testing.T) {
 	factory.lastSweep = time.Now()
 
 	// Add an expired entry
-	factory.cache["default/perses-1"] = clientCacheEntry{
-		client:      nil,
-		fingerprint: "fp-1",
-		createdAt:   time.Now().Add(-time.Minute),
+	factory.cache["default/perses-1"] = map[string]clientCacheEntry{
+		"": {
+			client:      nil,
+			fingerprint: "fp-1",
+			createdAt:   time.Now().Add(-time.Minute),
+		},
 	}
 
 	// Sweep should be skipped because lastSweep is recent
@@ -210,10 +235,12 @@ func TestClientCacheConcurrency(t *testing.T) {
 			defer wg.Done()
 			key := "default/perses-1"
 			factory.mtx.Lock()
-			factory.cache[key] = clientCacheEntry{
-				client:      nil,
-				fingerprint: "fp",
-				createdAt:   time.Now(),
+			factory.cache[key] = map[string]clientCacheEntry{
+				"": {
+					client:      nil,
+					fingerprint: "fp",
+					createdAt:   time.Now(),
+				},
 			}
 			factory.mtx.Unlock()
 			factory.ForgetInstance(key)
@@ -814,24 +841,23 @@ func TestBuildClientOAuthConfigMap(t *testing.T) {
 func TestBuildClientOAuthFile(t *testing.T) {
 	ctx := context.Background()
 
-	// Create temp files for the client ID and secret
-	idFile, err := os.CreateTemp("", "oauth-client-id-*")
+	allowedDir := t.TempDir()
+	// Create temp files for the client ID and secret inside the allowed directory
+	idFile, err := os.CreateTemp(allowedDir, "oauth-client-id-*")
 	require.NoError(t, err)
-	t.Cleanup(func() { _ = os.Remove(idFile.Name()) })
 	_, err = idFile.WriteString("perses-operator")
 	require.NoError(t, err)
 	require.NoError(t, idFile.Close())
 
-	secretFile, err := os.CreateTemp("", "oauth-client-secret-*")
+	secretFile, err := os.CreateTemp(allowedDir, "oauth-client-secret-*")
 	require.NoError(t, err)
-	t.Cleanup(func() { _ = os.Remove(secretFile.Name()) })
 	_, err = secretFile.WriteString("super-secret")
 	require.NoError(t, err)
 	require.NoError(t, secretFile.Close())
 
 	reader := fake.NewClientBuilder().WithScheme(newScheme()).Build()
 
-	t.Run("file type with valid files", func(t *testing.T) {
+	t.Run("file type rejected when allowedDirs not configured", func(t *testing.T) {
 		perses := persesv1alpha2.Perses{
 			ObjectMeta: metav1.ObjectMeta{Name: "perses", Namespace: "perses-system", Generation: 1},
 			Spec: persesv1alpha2.PersesSpec{
@@ -850,6 +876,30 @@ func TestBuildClientOAuthFile(t *testing.T) {
 		}
 
 		factory := NewWithConfig()
+		_, err := factory.buildClient(ctx, reader, perses)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "file references in secrets are disabled")
+	})
+
+	t.Run("file type with valid files inside allowedDirs", func(t *testing.T) {
+		perses := persesv1alpha2.Perses{
+			ObjectMeta: metav1.ObjectMeta{Name: "perses", Namespace: "perses-system", Generation: 1},
+			Spec: persesv1alpha2.PersesSpec{
+				ContainerPort: ptr.To(int32(8080)),
+				Client: &persesv1alpha2.Client{
+					OAuth: &persesv1alpha2.OAuth{
+						SecretSource: persesv1alpha2.SecretSource{
+							Type: persesv1alpha2.SecretSourceTypeFile,
+						},
+						ClientIDPath:     ptr.To(idFile.Name()),
+						ClientSecretPath: ptr.To(secretFile.Name()),
+						TokenURL:         "http://perses.perses-system.svc:8080/token",
+					},
+				},
+			},
+		}
+
+		factory := NewWithConfig(allowedDir)
 		cl, err := factory.buildClient(ctx, reader, perses)
 		require.NoError(t, err)
 		require.NotNil(t, cl)
@@ -877,7 +927,7 @@ func TestBuildClientOAuthFile(t *testing.T) {
 			},
 		}
 
-		factory := NewWithConfig()
+		factory := NewWithConfig(allowedDir)
 		_, err := factory.buildClient(ctx, reader, perses)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "clientIDPath is required when OAuth type is file")
@@ -901,7 +951,7 @@ func TestBuildClientOAuthFile(t *testing.T) {
 			},
 		}
 
-		factory := NewWithConfig()
+		factory := NewWithConfig(allowedDir)
 		_, err := factory.buildClient(ctx, reader, perses)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "clientSecretPath is required when OAuth type is file")
@@ -925,11 +975,141 @@ func TestBuildClientOAuthFile(t *testing.T) {
 			},
 		}
 
-		factory := NewWithConfig()
+		factory := NewWithConfig(allowedDir)
 		_, err := factory.buildClient(ctx, reader, perses)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to read OAuth client ID file")
+		assert.Contains(t, err.Error(), "invalid OAuth client ID file")
 	})
+}
+
+// writeSelfSignedCertPair writes a PEM-encoded self-signed certificate and its
+// private key into dir and returns their paths.
+func writeSelfSignedCertPair(t *testing.T, dir string) (certPath, keyPath string) {
+	t.Helper()
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	tmpl := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "perses-operator-test"},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	require.NoError(t, err)
+	keyDER, err := x509.MarshalECPrivateKey(key)
+	require.NoError(t, err)
+
+	certPath = filepath.Join(dir, "tls.crt")
+	keyPath = filepath.Join(dir, "tls.key")
+	require.NoError(t, os.WriteFile(certPath, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), 0o600))
+	require.NoError(t, os.WriteFile(keyPath, pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER}), 0o600))
+	return certPath, keyPath
+}
+
+func TestBuildClientTLSFile(t *testing.T) {
+	ctx := context.Background()
+	reader := fake.NewClientBuilder().WithScheme(newScheme()).Build()
+
+	allowedDir := t.TempDir()
+	certPath, keyPath := writeSelfSignedCertPair(t, allowedDir)
+
+	outsideDir := t.TempDir()
+	outsideCertPath, outsideKeyPath := writeSelfSignedCertPair(t, outsideDir)
+
+	persesWithClientTLS := func(tls *persesv1alpha2.TLS) persesv1alpha2.Perses {
+		return persesv1alpha2.Perses{
+			ObjectMeta: metav1.ObjectMeta{Name: "perses", Namespace: "perses-system", Generation: 1},
+			Spec: persesv1alpha2.PersesSpec{
+				ContainerPort: ptr.To(int32(8080)),
+				Client:        &persesv1alpha2.Client{TLS: tls},
+			},
+		}
+	}
+	fileCert := func(certPath string, keyPath *string) *persesv1alpha2.Certificate {
+		return &persesv1alpha2.Certificate{
+			SecretSource:   persesv1alpha2.SecretSource{Type: persesv1alpha2.SecretSourceTypeFile},
+			CertPath:       certPath,
+			PrivateKeyPath: keyPath,
+		}
+	}
+
+	tests := []struct {
+		name        string
+		allowedDirs []string
+		tls         *persesv1alpha2.TLS
+		errSubstr   string
+	}{
+		{
+			name:        "CA file inside allowed dir",
+			allowedDirs: []string{allowedDir},
+			tls:         &persesv1alpha2.TLS{Enable: ptr.To(true), CaCert: fileCert(certPath, nil)},
+		},
+		{
+			name:        "CA file outside allowed dir",
+			allowedDirs: []string{allowedDir},
+			tls:         &persesv1alpha2.TLS{Enable: ptr.To(true), CaCert: fileCert(outsideCertPath, nil)},
+			errSubstr:   "invalid CA cert file",
+		},
+		{
+			name:        "CA file rejected when file references disabled",
+			allowedDirs: nil,
+			tls:         &persesv1alpha2.TLS{Enable: ptr.To(true), CaCert: fileCert(certPath, nil)},
+			errSubstr:   "file references in secrets are disabled",
+		},
+		{
+			name:        "user cert and key inside allowed dir",
+			allowedDirs: []string{allowedDir},
+			tls: &persesv1alpha2.TLS{
+				Enable:   ptr.To(true),
+				CaCert:   fileCert(certPath, nil),
+				UserCert: fileCert(certPath, ptr.To(keyPath)),
+			},
+		},
+		{
+			name:        "user cert outside allowed dir",
+			allowedDirs: []string{allowedDir},
+			tls:         &persesv1alpha2.TLS{Enable: ptr.To(true), UserCert: fileCert(outsideCertPath, ptr.To(keyPath))},
+			errSubstr:   "invalid user cert file",
+		},
+		{
+			name:        "user cert private key outside allowed dir",
+			allowedDirs: []string{allowedDir},
+			tls:         &persesv1alpha2.TLS{Enable: ptr.To(true), UserCert: fileCert(certPath, ptr.To(outsideKeyPath))},
+			errSubstr:   "invalid user cert private key file",
+		},
+		{
+			name:        "user cert missing private key path",
+			allowedDirs: []string{allowedDir},
+			tls:         &persesv1alpha2.TLS{Enable: ptr.To(true), UserCert: fileCert(certPath, nil)},
+			errSubstr:   "privateKeyPath is required",
+		},
+		{
+			name:        "user cert empty private key path",
+			allowedDirs: []string{allowedDir},
+			tls:         &persesv1alpha2.TLS{Enable: ptr.To(true), UserCert: fileCert(certPath, ptr.To(""))},
+			errSubstr:   "privateKeyPath is required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			factory := NewWithConfig(tt.allowedDirs...)
+			cl, err := factory.buildClient(ctx, reader, persesWithClientTLS(tt.tls))
+			if tt.errSubstr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errSubstr)
+				return
+			}
+			require.NoError(t, err)
+			require.NotNil(t, cl)
+		})
+	}
 }
 
 func TestBuildClientKubernetesAuthAndOAuthConflict(t *testing.T) {
@@ -1048,4 +1228,184 @@ func TestConfigFingerprintOtherFields(t *testing.T) {
 	// Client nil should not crash and produce stable fingerprint
 	fpNilClient := configFingerprint(base)
 	assert.Equal(t, fpBase, fpNilClient, "Nil/empty Client should not alter fingerprint")
+}
+
+func newPersesForPods() persesv1alpha2.Perses {
+	return persesv1alpha2.Perses{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "perses-1",
+			Namespace: "default",
+		},
+		Spec: persesv1alpha2.PersesSpec{
+			ContainerPort: ptr.To(int32(8080)),
+		},
+	}
+}
+
+// readyPod builds a pod carrying the operator's selector labels, with a
+// configurable phase, IP, and Ready condition.
+func readyPod(name, ip string, phase corev1.PodPhase, ready bool) *corev1.Pod {
+	perses := newPersesForPods()
+	condStatus := corev1.ConditionFalse
+	if ready {
+		condStatus = corev1.ConditionTrue
+	}
+	return &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: perses.Namespace,
+			Labels:    LabelsForPerses(perses.Name, &perses),
+		},
+		Status: corev1.PodStatus{
+			Phase: phase,
+			PodIP: ip,
+			Conditions: []corev1.PodCondition{
+				{Type: corev1.PodReady, Status: condStatus},
+			},
+		},
+	}
+}
+
+func TestCreateClientsForAllPods(t *testing.T) {
+	ctx := context.Background()
+	perses := newPersesForPods()
+
+	t.Run("returns a client only for ready pods", func(t *testing.T) {
+		reader := fake.NewClientBuilder().WithScheme(newScheme()).WithObjects(
+			readyPod("ready-1", "10.0.0.1", corev1.PodRunning, true),
+			readyPod("ready-2", "10.0.0.2", corev1.PodRunning, true),
+			readyPod("pending", "10.0.0.3", corev1.PodPending, true),
+			readyPod("no-ip", "", corev1.PodRunning, true),
+			readyPod("not-ready", "10.0.0.4", corev1.PodRunning, false),
+		).Build()
+
+		clients, err := NewWithConfig().CreateClientsForAllPods(ctx, reader, perses)
+		require.NoError(t, err)
+		require.Len(t, clients, 2, "only the two running, IP-assigned, ready pods should yield clients")
+
+		got := []string{
+			clients[0].RESTClient().BaseURL.String(),
+			clients[1].RESTClient().BaseURL.String(),
+		}
+		assert.ElementsMatch(t, []string{
+			"http://10.0.0.1:8080",
+			"http://10.0.0.2:8080",
+		}, got)
+	})
+
+	t.Run("errors when no pods are ready", func(t *testing.T) {
+		reader := fake.NewClientBuilder().WithScheme(newScheme()).WithObjects(
+			readyPod("not-ready", "10.0.0.4", corev1.PodRunning, false),
+		).Build()
+
+		clients, err := NewWithConfig().CreateClientsForAllPods(ctx, reader, perses)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrNoReadyPods, "callers rely on errors.Is to treat this as a soft condition")
+		assert.Contains(t, err.Error(), "no ready pods found")
+		assert.Nil(t, clients)
+	})
+
+	t.Run("brackets IPv6 pod IPs", func(t *testing.T) {
+		reader := fake.NewClientBuilder().WithScheme(newScheme()).WithObjects(
+			readyPod("ready-v6", "fd00::1", corev1.PodRunning, true),
+		).Build()
+
+		clients, err := NewWithConfig().CreateClientsForAllPods(ctx, reader, perses)
+		require.NoError(t, err)
+		require.Len(t, clients, 1)
+		assert.Equal(t, "http://[fd00::1]:8080", clients[0].RESTClient().BaseURL.String())
+	})
+
+	t.Run("pins TLS ServerName to the service FQDN for pod-direct HTTPS", func(t *testing.T) {
+		tlsPerses := newPersesForPods()
+		tlsPerses.Spec.TLS = &persesv1alpha2.TLS{Enable: ptr.To(true)}
+
+		reader := fake.NewClientBuilder().WithScheme(newScheme()).WithObjects(
+			readyPod("ready-1", "10.0.0.1", corev1.PodRunning, true),
+		).Build()
+
+		clients, err := NewWithConfig().CreateClientsForAllPods(ctx, reader, tlsPerses)
+		require.NoError(t, err)
+		require.Len(t, clients, 1)
+
+		// The client dials the pod IP but must verify against the service DNS name.
+		assert.Equal(t, "https://10.0.0.1:8080", clients[0].RESTClient().BaseURL.String())
+		transport, ok := clients[0].RESTClient().Client.Transport.(*http.Transport)
+		require.True(t, ok, "expected an *http.Transport")
+		require.NotNil(t, transport.TLSClientConfig)
+		assert.Equal(t, "perses-1.default.svc.cluster.local", transport.TLSClientConfig.ServerName)
+	})
+
+	t.Run("SQL mode returns a single service client", func(t *testing.T) {
+		sqlPerses := newPersesForPods()
+		sqlPerses.Spec.Config.Database = config.Database{SQL: &config.SQL{}}
+
+		reader := fake.NewClientBuilder().WithScheme(newScheme()).Build()
+
+		clients, err := NewWithConfig().CreateClientsForAllPods(ctx, reader, sqlPerses)
+		require.NoError(t, err)
+		require.Len(t, clients, 1)
+		assert.Equal(t, "http://perses-1.default.svc.cluster.local:8080", clients[0].RESTClient().BaseURL.String())
+	})
+
+	t.Run("server URL flag returns a single client", func(t *testing.T) {
+		if flag.Lookup(PersesServerURLFlag) == nil {
+			flag.String(PersesServerURLFlag, "", "The Perses backend server URL")
+		}
+		require.NoError(t, flag.Set(PersesServerURLFlag, "http://perses.example:8080"))
+		t.Cleanup(func() { _ = flag.Set(PersesServerURLFlag, "") })
+
+		reader := fake.NewClientBuilder().WithScheme(newScheme()).Build()
+
+		clients, err := NewWithConfig().CreateClientsForAllPods(ctx, reader, perses)
+		require.NoError(t, err)
+		require.Len(t, clients, 1)
+		assert.Equal(t, "http://perses.example:8080", clients[0].RESTClient().BaseURL.String())
+	})
+
+	t.Run("caches and reuses per-pod clients across calls", func(t *testing.T) {
+		reader := fake.NewClientBuilder().WithScheme(newScheme()).WithObjects(
+			readyPod("ready-1", "10.0.0.1", corev1.PodRunning, true),
+			readyPod("ready-2", "10.0.0.2", corev1.PodRunning, true),
+		).Build()
+
+		factory := NewWithConfig()
+
+		first, err := factory.CreateClientsForAllPods(ctx, reader, perses)
+		require.NoError(t, err)
+		require.Len(t, first, 2)
+		assert.Len(t, factory.cache["default/perses-1"], 2)
+
+		second, err := factory.CreateClientsForAllPods(ctx, reader, perses)
+		require.NoError(t, err)
+		require.Len(t, second, 2)
+		assert.Len(t, factory.cache["default/perses-1"], 2)
+
+		// Same client instances must come back — a fresh build would leak the old ones.
+		firstREST := []*perseshttp.RESTClient{first[0].RESTClient(), first[1].RESTClient()}
+		secondREST := []*perseshttp.RESTClient{second[0].RESTClient(), second[1].RESTClient()}
+		assert.ElementsMatch(t, firstREST, secondREST, "per-pod clients should be reused, not rebuilt")
+
+		// ForgetInstance evicts every per-pod client for the instance.
+		factory.ForgetInstance("default/perses-1")
+		assert.Empty(t, factory.cache)
+	})
+}
+
+func TestIsPodReady(t *testing.T) {
+	tests := []struct {
+		name string
+		pod  *corev1.Pod
+		want bool
+	}{
+		{"running, ready, with IP", readyPod("p", "10.0.0.1", corev1.PodRunning, true), true},
+		{"not running", readyPod("p", "10.0.0.1", corev1.PodPending, true), false},
+		{"no IP", readyPod("p", "", corev1.PodRunning, true), false},
+		{"ready condition false", readyPod("p", "10.0.0.1", corev1.PodRunning, false), false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isPodReady(tt.pod))
+		})
+	}
 }
