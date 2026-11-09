@@ -11,7 +11,7 @@ require (
 	github.com/openshift/library-go v0.0.0-20261028054900-dbcad7febe41
 	github.com/perses/common v0.31.2
 	github.com/prometheus/client_golang v1.25.0
-	github.com/rhobs/perses v0.0.0-20261021131516-8d275c09af11
+	github.com/rhobs/perses v0.0.0-20261109101219-90ea8893259f
 	github.com/rhobs/perses-spec v0.0.0-20261020104126-c7666210297f
 	github.com/sirupsen/logrus v1.10.2
 	github.com/stretchr/testify v1.12.1
