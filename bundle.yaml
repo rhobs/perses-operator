@@ -15,7 +15,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     cert-manager.io/inject-ca-from: perses-operator-system/perses-operator-serving-cert
-    controller-gen.kubebuilder.io/version: v0.22.0
+    controller-gen.kubebuilder.io/version: v0.23.0
   name: perses.perses.dev
 spec:
   conversion:
@@ -9713,7 +9713,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     cert-manager.io/inject-ca-from: perses-operator-system/perses-operator-serving-cert
-    controller-gen.kubebuilder.io/version: v0.22.0
+    controller-gen.kubebuilder.io/version: v0.23.0
   name: persesdashboards.perses.dev
 spec:
   conversion:
@@ -10641,9 +10641,19 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     cert-manager.io/inject-ca-from: perses-operator-system/perses-operator-serving-cert
-    controller-gen.kubebuilder.io/version: v0.22.0
+    controller-gen.kubebuilder.io/version: v0.23.0
   name: persesdatasources.perses.dev
 spec:
+  conversion:
+    strategy: Webhook
+    webhook:
+      clientConfig:
+        service:
+          name: perses-operator-webhook-service
+          namespace: perses-operator-system
+          path: /convert
+      conversionReviewVersions:
+      - v1
   group: perses.dev
   names:
     kind: PersesDatasource
@@ -11405,7 +11415,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     cert-manager.io/inject-ca-from: perses-operator-system/perses-operator-serving-cert
-    controller-gen.kubebuilder.io/version: v0.22.0
+    controller-gen.kubebuilder.io/version: v0.23.0
   name: persesglobaldatasources.perses.dev
 spec:
   conversion:
@@ -12270,7 +12280,7 @@ spec:
         - --health-probe-bind-address=:8081
         - --metrics-bind-address=127.0.0.1:8082
         - --leader-elect
-        image: docker.io/persesdev/perses-operator:v0.5.0
+        image: docker.io/persesdev/perses-operator:v0.6.1
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
